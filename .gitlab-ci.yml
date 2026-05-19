@@ -1,0 +1,9 @@
+include:
+  - template: Jobs/Secret-Detection***REMOVED***
+  - template: Jobs/SAST***REMOVED***
+
+stages:
+  - test
+
+secret_detection:
+  stage: test
