@@ -70,3 +70,23 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
+
+func HandleQuit(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    
+    kickConfig := tgbotapi.KickChatMemberConfig{
+        ChatMemberConfig: tgbotapi.ChatMemberConfig{
+            ChatID: message.Chat.ID,
+            UserID: message.From.ID,
+        },
+    }
+
+    // Оголошуємо err перед використанням
+    _, err := bot.Request(kickConfig)
+    if err != nil {
+        log.Printf("Ошибка кика: %v", err)
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось кикнуть пользователя. Возможно, у бота нет прав или пользователь админ."))
+        return
+    }
+
+    bot.Send(tgbotapi.NewMessage(message.Chat.ID, "До свидания!"))
+}
