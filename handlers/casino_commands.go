@@ -30,7 +30,14 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось проверить ваш баланс."))
 		return
 	}
-	
+
+
+	if bet < 50 {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет"))
+		return
+	}
+
+
 	if bet > balance {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %d", balance)))
 		return
@@ -83,6 +90,11 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
 	if err != nil {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка авторизации игрового профиля."))
+		return
+	}
+
+	if bet < 50 {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет"))
 		return
 	}
 
