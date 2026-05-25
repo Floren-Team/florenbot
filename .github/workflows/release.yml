@@ -3,19 +3,21 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Запускається, коли ви робите тег v1.0.0
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env: # Додайте цей блок
+    env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
-        with: { go-version: '1.22' }
+        with:
+          go-version: '1.22'
 
       - name: Build binary
         run: go build -o florenbot ***REMOVED***
@@ -23,17 +25,12 @@ jobs:
       - name: Install FPM
         run: gem install fpm
 
-    - name: Create .deb package
+      - name: Create .deb package
         run: |
-          # Створюємо структуру для сервісу
           mkdir -p build_root/etc/systemd/system/
           mkdir -p build_root/usr/bin/
-          
-          # Копіюємо бінарник та сервіс
           cp florenbot build_root/usr/bin/florenbot
           cp florenbot.service build_root/etc/systemd/system/
-          
-          # Збираємо пакет
           fpm -s dir -t deb -n florenbot -v ${{ github.ref_name }} \
           --description "Florenbot Telegram Bot" \
           --post-install postinst \
