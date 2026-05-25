@@ -28,25 +28,22 @@ jobs:
           mkdir -p build_root/etc/systemd/system/
           mkdir -p build_root/usr/bin/
           cp florenbot build_root/usr/bin/florenbot
-          # Якщо у вас є файл сервісу, розкоментуйте наступний рядок:
-          # cp florenbot.service build_root/etc/systemd/system/
-          
-          fpm -s dir -t deb -n florenbot -v ${{ github.ref_name }} \
+          fpm -s dir -t deb -n florenbot -v 1.0.0 \
           --description "Florenbot Telegram Bot" \
           -C build_root .
-          
-    - name: Import GPG key
-      uses: crazy-max/ghaction-import-gpg@v6
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSWORD }}
 
-    - name: Sign .deb
-      run: gpg --armor --detach-sign florenbot_${{ github.ref_name }}_amd64.deb
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSWORD }}
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          florenbot_${{ github.ref_name }}_amd64.deb
-          florenbot_${{ github.ref_name }}_amd64.deb.asc
+      - name: Sign .deb
+        run: gpg --armor --detach-sign florenbot_1.0.0_amd64.deb
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            florenbot_1.0.0_amd64.deb
+            florenbot_1.0.0_amd64.deb.asc
