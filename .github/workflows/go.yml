@@ -40,7 +40,7 @@ jobs:
       uses: crazy-max/ghaction-import-gpg@v6
       with:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
+        passphrase: ${{ secrets.GPG_PASSWORD }}
 
     - name: Sign .deb
       run: gpg --armor --detach-sign florenbot_${{ github.ref_name }}_amd64.deb
