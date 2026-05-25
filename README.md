@@ -39,12 +39,29 @@
 2. **Настройка окружения:**
    Скопируйте `.env.example` в `.env` и укажите параметры подключения к базам данных:
    ```env
-   DB_DSN=user:password@tcp(localhost:3306)/game_db
+    REDIS_ADDR=localhost:6379
+    REDIS_PASSWORD=
+    REDIS_DB=0
+    
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_USER=
+    DB_PASSWORD=
+    DB_NAME=
+    DB_ROOT_PASSWORD=
    REDIS_ADDR=localhost:6379
 
 
-3. Запуск
+3. Запустите БД
+
+   ``bash
+       docker compose up -d
+   ``
+
+4. Запуск приложения
 
 ``bash
 go run main.go
 ``
+
+Не забывайте про BOT_TOKEN его нужно подставить в @BotFather вам выдает Токен бота и вы должны ставить туда.
