@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Build binary
+        run: go build -o florenbot ***REMOVED***
+
+      - name: Install FPM
+        run: gem install fpm
+
+      - name: Create .deb package
+        run: |
+          mkdir -p build_root/etc/systemd/system/
+          mkdir -p build_root/usr/bin/
+          cp florenbot build_root/usr/bin/florenbot
+          fpm -s dir -t deb -n florenbot -v 1.0.0 \
+          --description "Florenbot Telegram Bot" \
+          -C build_root .
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSWORD }}
+
+      - name: Sign .deb
+        run: gpg --armor --detach-sign florenbot_1.0.0_amd64.deb
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            florenbot_1.0.0_amd64.deb
+            florenbot_1.0.0_amd64.deb.asc
