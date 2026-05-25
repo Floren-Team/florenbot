@@ -6,14 +6,13 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/go-sql-driver/mysql" // Драйвер для MySQL
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var DB *sql.DB
 
 // InitDB инициализирует подключение к MySQL и создает таблицы
 func InitDB() {
-	// DSN формат: username:password@tcp(host:port)/dbname
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
 		getEnv("DB_USER", "root"),
 		getEnv("DB_PASSWORD", ""),
@@ -25,44 +24,28 @@ func InitDB() {
 	var err error
 	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Ошибка конфигурации MySQL: %v", err)
+		log.Fatalf("❌ Ошибка конфигурации MySQL: %v", err)
 	}
 
-	err = DB.Ping()
-	if err != nil {
-		log.Fatalf("Не удалось подключиться к MySQL (Ping): %v", err)
+	if err = DB.Ping(); err != nil {
+		log.Fatalf("❌ Не удалось подключиться к MySQL (Ping): %v", err)
 	}
 
-	// 1. Таблица пользователей
-	usersQuery := `
-    CREATE TABLE IF NOT EXISTS users (
-        id BIGINT PRIMARY KEY,
-        username VARCHAR(255),
-        balance INTEGER DEFAULT 1000
-    ) ENGINE=InnoDB;`
-
-	_, err = DB.Exec(usersQuery)
-	if err != nil {
-		log.Fatalf("Ошибка создания таблицы пользователей: %v", err)
+	// Создание таблиц
+	usersQuery := `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance INTEGER DEFAULT 1000) ENGINE=InnoDB;`
+	if _, err = DB.Exec(usersQuery); err != nil {
+		log.Fatalf("❌ Ошибка создания таблицы users: %v", err)
 	}
 
-	// 2. Таблица черного списка
-	blacklistQuery := `
-    CREATE TABLE IF NOT EXISTS blacklists (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id BIGINT NOT NULL,
-        reason TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB;`
-
-	_, err = DB.Exec(blacklistQuery)
-	if err != nil {
-		log.Fatalf("Ошибка создания таблицы blacklists: %v", err)
+	blacklistQuery := `CREATE TABLE IF NOT EXISTS blacklists (id INT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB;`
+	if _, err = DB.Exec(blacklistQuery); err != nil {
+		log.Fatalf("❌ Ошибка создания таблицы blacklists: %v", err)
 	}
+	
+	log.Println("✅ Подключение к MySQL успешно")
 }
 
-// GetUserBalanceSQL проверяет наличие пользователя в БД
+// GetUserBalanceSQL получает баланс пользователя или создает его, если он новый
 func GetUserBalanceSQL(id int64, username string) (int, error) {
 	var balance int
 	err := DB.QueryRow("SELECT balance FROM users WHERE id = ?", id).Scan(&balance)
@@ -73,7 +56,6 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		log.Printf("🆕 Создана новая запись в MySQL для: %s (ID: %d)", username, id)
 		return initialBalance, nil
 	}
 
@@ -93,15 +75,9 @@ func UpdateBalanceSQL(id int64, amount int) error {
 // IsUserBanned проверяет наличие пользователя в черном списке
 func IsUserBanned(id int64) (bool, error) {
 	var exists bool
-	// MySQL использует COUNT или EXISTS
 	query := "SELECT EXISTS(SELECT 1 FROM blacklists WHERE user_id = ?)"
-
 	err := DB.QueryRow(query, id).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-
-	return exists, nil
+	return exists, err
 }
 
 func getEnv(key, defaultValue string) string {

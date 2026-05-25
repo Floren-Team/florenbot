@@ -15,68 +15,73 @@ import (
 )
 
 func main() {
-	// Загрузка переменных окружения
+	// 1. Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
-		log.Println("Файл .env не найден, используются системные переменные окружения")
+		log.Println("⚠️ Файл .env не найден, используются системные переменные")
 	}
 
-	// Инициализация инфраструктуры
+	// 2. Инициализация инфраструктуры (БД + Redis)
+	// Теперь InitDB внутри себя решает: MySQL (Docker) или SQLite (локально)
 	engine.InitDB()
-	defer engine.DB.Close()
+	if engine.DB != nil {
+		defer engine.DB.Close()
+	}
+	
+	// Предполагается, что InitRedis у вас настроен аналогично
 	engine.InitRedis()
 
+	// 3. Настройка бота
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
-		log.Fatal("Переменная BOT_TOKEN не установлена в .env")
+		log.Fatal("❌ Переменная BOT_TOKEN не установлена")
 	}
 
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
-		log.Fatalf("Ошибка инициализации бота: %v", err)
+		log.Fatalf("❌ Ошибка инициализации бота: %v", err)
 	}
 
 	bot.Debug = false
-	log.Printf("Авторизовано под аккаунтом %s", bot.Self.UserName)
+	log.Printf("🤖 Авторизовано как @%s", bot.Self.UserName)
 
-	// Настройка получения обновлений
+	// 4. Настройка получения обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 
-	// Время запуска бота, чтобы игнорировать сообщения, пришедшие до старта
 	startTime := time.Now()
 
+	// 5. Главный цикл обработки событий
 	for update := range updates {
-		// Пропускаем, если сообщение пустое
 		if update.Message == nil {
 			continue
 		}
 
-		// ЗАЩИТА: Игнорируем сообщения, пришедшие до запуска бота
-		// Это решает проблему "просыпания" бота и ответов на старые запросы
+		// Защита от "старых" сообщений
 		if update.Message.Time().Before(startTime) {
 			continue
 		}
 
-		// 1. ПРОВЕРКА ПРИ ВСТУПЛЕНИИ В ЧАТ
+		// Обработка новых участников
 		if update.Message.NewChatMembers != nil {
 			handleNewMembers(bot, update)
 			continue
 		}
 
-		// 2. ОБРАБОТКА КОМАНД
+		// Обработка команд
 		if update.Message.IsCommand() {
 			handleCommands(bot, update.Message)
 		}
 	}
 }
 
-// handleNewMembers — отдельная функция для проверки ЧС
 func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	for _, newUser := range update.Message.NewChatMembers {
+		// Используем универсальную проверку через engine.IsUserBanned
+		// Она теперь работает и с MySQL, и с SQLite
 		isBanned, err := engine.IsUserBanned(newUser.ID)
 		if err != nil {
-			log.Printf("Ошибка проверки ЧС: %v", err)
+			log.Printf("⚠️ Ошибка проверки ЧС: %v", err)
 			continue
 		}
 
@@ -94,7 +99,6 @@ func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	}
 }
 
-// handleCommands — централизованный обработчик команд
 func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	switch message.Command() {
 	case "start":
