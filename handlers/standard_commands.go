@@ -28,7 +28,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/roulette` `[ставка] [цвет]` — Сыграть в рулетку\n"+
 		"🔹 `/bones` `[ставка]` — Бросить кости против бота 🎲\n\n"+
 		"Желаем удачи в игре! Пусть фортуна будет на вашей стороне! 🍀\n\n"+
-		"Версия бота: 0.1.5", 
+		"Версия бота: 1.0.0", 
 		message.From.FirstName, balance)
     
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
