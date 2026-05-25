@@ -8,3 +8,5 @@ florenbot.service
 postinst
 prerm
 postrm
+binary
+test
