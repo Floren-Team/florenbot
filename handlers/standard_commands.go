@@ -61,7 +61,8 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	text := fmt.Sprintf("👤 **Ваш игровой профиль:**\n"+
 		"├── **Имя:** %s\n"+
 		"├── **ID:** `%d`\n"+
-		"└── **Баланс:** %d монет 🪙", 
+		"└── **Баланс:** %d монет 🪙\n"+
+		"Приятной вам игры в FlorenBot!", 
 		message.From.FirstName, 
 		message.From.ID, 
 		balance,

@@ -109,8 +109,6 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleRoulette(bot, message)
 	case "bones":
 		bones.HandleBones(bot, message)
-	case "kick":
-		handlers.HandleKick(bot, message)
 	case "q":
 		handlers.HandleQuit(bot, message)
 	default:
