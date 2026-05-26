@@ -10,13 +10,13 @@
 2. Распакуйте архив в /usr/local/bin:
 ``bash
    sudo rm -rf /usr/local/go (Если была инсталяция ранее)
-sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz 
+   sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz 
 ``
 3. Настройте PATH:
 
 ``bash
   echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
-source ~/.bashrc
+  source ~/.bashrc
 ``
 
 Проверьте что у вас есть MariaDB (MySQL), Redis и настройте .env
