@@ -10,3 +10,4 @@ prerm
 postrm
 binary
 test
+test.go
