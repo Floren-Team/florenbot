@@ -11,3 +11,5 @@ postrm
 binary
 test
 test.go
+data
+
