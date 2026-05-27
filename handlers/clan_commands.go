@@ -55,34 +55,35 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 	case "get":
-		{
-			clan_id, err := engine.GetClanByOwnerID(user_id)
-			if err != nil {
-				log.Printf("Ошибка получения ID клана: %v", err)
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-				return
-			}
+    {
+        // 1. Шукаємо, в якому клані користувач (як учасник)
+        clan_id, err := engine.GetUserClanID(user_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+            return
+        }
 
-			clan, err := engine.GetClan(clan_id)
-			if err != nil {
-				log.Printf("Ошибка получения данных клана: %v", err)
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Клан не найден"))
-				return
-			}
+        // 2. Отримуємо дані клану
+        clan, err := engine.GetClan(clan_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Клан не найден"))
+            return
+        }
 
-			// Формуємо розгорнуту інформацію
-			// Використовуємо \n для перенесення рядків
-			info := fmt.Sprintf("✅ *Информация о клане:*\n\n"+
-				"🆔 ID: `%d`\n"+
-				"🏷 Название: *%s*\n"+
-				"👑 Владелец ID: `%d`",
-				clan.Id, clan.Name, clan.OwnerId)
+        count, _ := engine.GetClanMemberCount(clan.Id)
 
-			msg := tgbotapi.NewMessage(message.Chat.ID, info)
-			msg.ParseMode = "Markdown" // Додаємо парсинг Markdown для гарного вигляду
-			bot.Send(msg)
-			return
-		}
+        info := fmt.Sprintf("✅ *Информация о клане:*\n\n"+
+            "🆔 ID: `%d`\n"+
+            "🏷 Название: *%s*\n"+
+            "👥 Участников: `%d`\n"+
+            "👑 Владелец ID: `%d`",
+            clan.Id, clan.Name, count, clan.OwnerId)
+
+        msg := tgbotapi.NewMessage(message.Chat.ID, info)
+        msg.ParseMode = "Markdown"
+        bot.Send(msg)
+        return
+    }
 	case "join":
 		{
 			if len(parts) < 2 {
@@ -109,25 +110,28 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		}
 	case "leave":
-		{
-			clan_id, err := engine.GetClanByOwnerID(user_id)
-			if err != nil {
-				log.Printf("Ошибка получения ID клана: %v", err)
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не в клане"))
-				return
-			}
+        {
+            // 1. Ищем клан, в котором состоит пользователь (как участник)
+            clan_id, err := engine.GetUserClanID(user_id)
+            if err != nil {
+                // Если ошибки нет в базе, но клан не найден, значит пользователь не в клане
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+                return
+            }
 
-			log.Printf("ID клана: %d", clan_id)
+            log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)
 
-			err = engine.LeaveClan(clan_id, user_id)
-			if err != nil {
-				log.Printf("Ошибка при выходе из клана: %v", err)
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-				return
-			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Вы вышли из клана"))
-			return
-		}
+            // 2. Выполняем выход из клана
+            err = engine.LeaveClan(clan_id, user_id)
+            if err != nil {
+                log.Printf("Ошибка при выходе из клана: %v", err)
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что-то пошло не так при выходе из клана..."))
+                return
+            }
+            
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Вы успешно вышли из клана"))
+            return
+        }
 	default:
 		{
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /clan create [имя]\nВсе действия: create, get, list, delete, update"))

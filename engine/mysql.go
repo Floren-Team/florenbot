@@ -247,7 +247,7 @@ func LeaveClan(clan_id uint64, user_id uint64) error {
 	return err
 }
 
-func getClanMember(clan_id uint64, user_id uint64) (uint16, error) {
+func GetClanMember(clan_id uint64, user_id uint64) (uint16, error) {
 	var id uint16
 	err := DB.QueryRow("SELECT user_id FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id).Scan(&id)
 	return id, err
@@ -308,6 +308,24 @@ func DeleteCode(code string) error {
 	}
 
 	return tx.Commit()
+}
+
+func GetUserClanID(userID uint64) (uint64, error) {
+	var clanID uint64
+	err := DB.QueryRow("SELECT clan_id FROM clans_members WHERE user_id = ?", userID).Scan(&clanID)
+	return clanID, err
+}
+
+func GetClanMemberCount(clanID int64) (int, error) {
+    var count int
+    query := "SELECT COUNT(*) FROM clans_members WHERE clan_id = ?"
+    
+    err := DB.QueryRow(query, clanID).Scan(&count)
+    if err != nil {
+        return 0, err
+    }
+    
+    return count, nil
 }
 
 func GetPromocodesUser(id int64) ([]UserPromo, error) {
