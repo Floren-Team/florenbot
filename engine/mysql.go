@@ -66,20 +66,80 @@ func InitDB() {
 	// SQL-запросы для создания таблиц
 	var queries []string
     if dbMode == "mysql" {
-        queries = []string{
-            `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance FLOAT DEFAULT 1000, promocode VARCHAR(32) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB;`,
-            `CREATE TABLE IF NOT EXISTS blacklists (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB;`,
-            `CREATE TABLE IF NOT EXISTS promocodes (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, code VARCHAR(255) NOT NULL, amount INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB;`,
-        }
-    } else {
-        // SQLite не поддерживает ENGINE=InnoDB и AUTO_INCREMENT пишется иначе
-        queries = []string{
-            `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance FLOAT DEFAULT 1000, promocode VARCHAR(32) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
-            `CREATE TABLE IF NOT EXISTS blacklists (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`,
-            `CREATE TABLE IF NOT EXISTS promocodes (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(255) NOT NULL, amount INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
-        }
-    }
+		queries = []string{
+			// 1. Спочатку створюємо незалежні таблиці
+			`CREATE TABLE IF NOT EXISTS clans (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				name VARCHAR(255) NOT NULL, 
+				owner_id BIGINT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
+			`CREATE TABLE IF NOT EXISTS promocodes (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				code VARCHAR(255) NOT NULL UNIQUE, 
+				amount INT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
+
+			// 2. Таблиця users з FOREIGN KEY
+			`CREATE TABLE IF NOT EXISTS users (
+				id BIGINT PRIMARY KEY, 
+				username VARCHAR(255), 
+				balance FLOAT DEFAULT 1000, 
+				promocode VARCHAR(32), 
+				clan_id INT DEFAULT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL,
+				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL
+			) ENGINE=InnoDB;`,
+
+			// 3. Таблиця, що залежить від users
+			`CREATE TABLE IF NOT EXISTS blacklists (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				user_id BIGINT NOT NULL, 
+				reason TEXT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+				CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			) ENGINE=InnoDB;`,
+		}
+	} else {
+		// SQLite (порядок створення критично важливий)
+		queries = []string{
+			`CREATE TABLE IF NOT EXISTS clans (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, 
+				name VARCHAR(255) NOT NULL, 
+				owner_id BIGINT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
+
+			`CREATE TABLE IF NOT EXISTS promocodes (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, 
+				code VARCHAR(255) NOT NULL UNIQUE, 
+				amount INT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
+
+			`CREATE TABLE IF NOT EXISTS users (
+				id BIGINT PRIMARY KEY, 
+				username VARCHAR(255), 
+				balance FLOAT DEFAULT 1000, 
+				promocode VARCHAR(32), 
+				clan_id INTEGER, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE SET NULL,
+				FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE SET NULL
+			);`,
+
+			`CREATE TABLE IF NOT EXISTS blacklists (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, 
+				user_id BIGINT NOT NULL, 
+				reason TEXT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+				FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
+		}
+	}
 	for _, query := range queries {
 		debug("Выполнение SQL: %s", query)
 		if _, err = DB.Exec(query); err != nil {
