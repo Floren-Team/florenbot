@@ -1,6 +1,7 @@
 .env
 sql
 *.db
+*.db-*
 logs
 florenbot
 florenbot_1.0.0_amd64.deb
