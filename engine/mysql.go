@@ -24,6 +24,12 @@ type UserPromo struct {
     Amount int
 }
 
+type Clans struct {
+	Id   int64
+	Name string
+	OwnerId uint64
+}
+
 func InitDB() {
 	var err error
 	dbMode := getEnv("DB_MODE", "mysql")
@@ -161,6 +167,72 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 		return 1000, err
 	}
 	return balance, err
+}
+
+func CreateClan(name string, owner_id uint64) error {
+	tx, err := DB.Begin()
+    if err != nil {
+        return err
+    }
+
+	res, err := tx.Exec("INSERT INTO clans (name, owner_id) VALUES (?, ?)", name, owner_id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	clan_id, err := res.LastInsertId()
+    if err != nil {
+        tx.Rollback()
+        return err
+    }
+
+	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", clan_id, owner_id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return err
+}
+
+func GetClanByOwnerID(owner_id uint64) (uint64, error) {
+	var id uint64
+	err := DB.QueryRow("SELECT id FROM clans WHERE owner_id = ?", owner_id).Scan(&id)
+	return id, err
+}
+
+func GetClan(id uint64) (*Clans, error) {
+	clan := &Clans{}
+	query := "SELECT id, name, owner_id FROM clans WHERE id = ?"
+	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
+	return clan, err
+
+
+}
+
+func DeleteClan(id uint64) error { // Змінив uint64 на int64 (для SQL це зазвичай краще)
+    tx, err := DB.Begin()
+    if err != nil {
+        return err
+    }
+
+    // 1. Спочатку обнуляємо clan_id у користувачів (щоб уникнути порушення FOREIGN KEY)
+    _, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
+    if err != nil {
+        tx.Rollback()
+        return err
+    }
+
+    // 2. Потім видаляємо сам клан
+    _, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
+    if err != nil {
+        tx.Rollback()
+        return err
+    }
+
+    return tx.Commit()
 }
 
 func ActivateCode(id int64, code string) error {
