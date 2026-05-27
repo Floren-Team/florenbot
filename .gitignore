@@ -12,4 +12,5 @@ binary
 test
 test.go
 data
-
+cache
+redis.go.bak

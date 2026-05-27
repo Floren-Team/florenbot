@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"florenbot/bones"
@@ -14,24 +16,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists { return value }
+	return defaultValue
+}
+
 func main() {
 	// 1. Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️ Файл .env не найден, используются системные переменные")
 	}
 
-
-
-
-	// 2. Инициализация инфраструктуры (БД + Redis)
-	// Теперь InitDB внутри себя решает: MySQL (Docker) или SQLite (локально)
+	// 2. Инициализация инфраструктуры
 	engine.InitDB()
-	if engine.DB != nil {
-		defer engine.DB.Close()
-	}
-	
-	// Предполагается, что InitRedis у вас настроен аналогично
-	engine.InitRedis()
+	engine.InitCache()
 
 	// 3. Настройка бота
 	token := os.Getenv("BOT_TOKEN")
@@ -47,41 +45,54 @@ func main() {
 	bot.Debug = false
 	log.Printf("🤖 Авторизовано как @%s", bot.Self.UserName)
 
-	// 4. Настройка получения обновлений
+	// 4. Канал для перехвата сигналов завершения (Ctrl+C)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// 5. Настройка обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 
 	startTime := time.Now()
 
-	// 5. Главный цикл обработки событий
-	for update := range updates {
-		if update.Message == nil {
-			continue
-		}
+	// 6. Запуск обработки событий в горутине
+	go func() {
+		for update := range updates {
+			if update.Message == nil {
+				continue
+			}
 
-		// Защита от "старых" сообщений
-		if update.Message.Time().Before(startTime) {
-			continue
-		}
+			// Защита от "старых" сообщений
+			if update.Message.Time().Before(startTime) {
+				continue
+			}
 
-		// Обработка новых участников
-		if update.Message.NewChatMembers != nil {
-			handleNewMembers(bot, update)
-			continue
-		}
+			// Обработка новых участников
+			if update.Message.NewChatMembers != nil {
+				handleNewMembers(bot, update)
+				continue
+			}
 
-		// Обработка команд
-		if update.Message.IsCommand() {
-			handleCommands(bot, update.Message)
+			// Обработка команд
+			if update.Message.IsCommand() {
+				handleCommands(bot, update.Message)
+			}
 		}
-	}
+	}()
+
+	// Блокируемся до получения сигнала выхода
+	<-quit
+	log.Println("🛑 Получен сигнал завершения. Останавливаю бота...")
+
+	// Безопасное закрытие базы данных
+	engine.CloseDB()
+	engine.ShutdownCache()
+	log.Println("✅ Бот успешно выключен.")
 }
 
 func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	for _, newUser := range update.Message.NewChatMembers {
-		// Используем универсальную проверку через engine.IsUserBanned
-		// Она теперь работает и с MySQL, и с SQLite
 		isBanned, err := engine.IsUserBanned(newUser.ID)
 		if err != nil {
 			log.Printf("⚠️ Ошибка проверки ЧС: %v", err)

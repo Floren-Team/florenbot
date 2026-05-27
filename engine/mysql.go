@@ -7,131 +7,114 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var DB *sql.DB
 
-// InitDB инициализирует подключение к MySQL и создает таблицы
-func InitDB() {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
-		getEnv("DB_USER", "root"),
-		getEnv("DB_PASSWORD", ""),
-		getEnv("DB_HOST", "localhost"),
-		getEnv("DB_PORT", "3306"),
-		getEnv("DB_NAME", "game_db"),
-	)
+// Функция для отладки (дебаггер)
+func debug(format string, v ...interface{}) {
+	if os.Getenv("DEBUG") == "true" {
+		log.Printf("[DEBUG] "+format, v...)
+	}
+}
 
+type UserPromo struct {
+    Code   string
+    Amount int
+}
+
+func InitDB() {
 	var err error
-	DB, err = sql.Open("mysql", dsn)
+	dbMode := getEnv("DB_MODE", "mysql")
+	debug("Режим БД: %s", dbMode)
+
+	if dbMode == "mysql" {
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+			getEnv("DB_USER", "root"),
+			getEnv("DB_PASSWORD", ""),
+			getEnv("DB_HOST", "localhost"),
+			getEnv("DB_PORT", "3306"),
+			getEnv("DB_NAME", "game_db"),
+		)
+		DB, err = sql.Open("mysql", dsn)
+	} else {
+		log.Print("Использую локальную БД (SQLite)...")
+
+		if _, err := os.Stat("db"); os.IsNotExist(err) {
+            log.Println("Директория 'db' не найдена, создаю её...")
+            os.Mkdir("db", 0755)
+        }
+		DB, err = sql.Open("sqlite3", "bot.db")
+
+		_, err = DB.Exec("PRAGMA journal_mode=WAL;")
+        if err != nil {
+            log.Printf("⚠️ Не удалось включить WAL-режим: %v", err)
+        } else {
+			log.Println("✅ WAL-режим включен")
+		}
+	}
+
 	if err != nil {
-		log.Fatalf("❌ Ошибка конфигурации MySQL: %v", err)
+		log.Fatalf("❌ Ошибка при открытии БД: %v", err)
 	}
 
 	if err = DB.Ping(); err != nil {
-		log.Fatalf("❌ Не удалось подключиться к MySQL (Ping): %v", err)
+		log.Fatalf("❌ Не удалось подключиться к БД: %v", err)
 	}
 
-	// Создание таблиц
-	usersQuery := `CREATE TABLE IF NOT EXISTS users
-	 (id BIGINT PRIMARY KEY,
-	  username VARCHAR(255), 
-	  balance FLOAT DEFAULT 1000,
-	  promocode VARCHAR(32) UNIQUE NULL,
-	  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) 
-	  ENGINE=InnoDB;`
-	if _, err = DB.Exec(usersQuery); err != nil {
-		log.Fatalf("❌ Ошибка создания таблицы users: %v", err)
+	// SQL-запросы для создания таблиц
+	var queries []string
+    if dbMode == "mysql" {
+        queries = []string{
+            `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance FLOAT DEFAULT 1000, promocode VARCHAR(32) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB;`,
+            `CREATE TABLE IF NOT EXISTS blacklists (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB;`,
+            `CREATE TABLE IF NOT EXISTS promocodes (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, code VARCHAR(255) NOT NULL, amount INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB;`,
+        }
+    } else {
+        // SQLite не поддерживает ENGINE=InnoDB и AUTO_INCREMENT пишется иначе
+        queries = []string{
+            `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance FLOAT DEFAULT 1000, promocode VARCHAR(32) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
+            `CREATE TABLE IF NOT EXISTS blacklists (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`,
+            `CREATE TABLE IF NOT EXISTS promocodes (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(255) NOT NULL, amount INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`,
+        }
+    }
+
+	for _, query := range queries {
+		debug("Выполнение SQL: %s", query)
+		if _, err = DB.Exec(query); err != nil {
+			log.Fatalf("❌ Ошибка создания таблицы: %v", err)
+		}
 	}
 
-	blacklistQuery := `CREATE TABLE IF NOT EXISTS blacklists (id INT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB;`
-	if _, err = DB.Exec(blacklistQuery); err != nil {
-		log.Fatalf("❌ Ошибка создания таблицы blacklists: %v", err)
-	}
-
-
-	promocodeQuery := `
-	CREATE TABLE IF NOT EXISTS promocodes (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		code VARCHAR(255) NOT NULL,
-		amount INT NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	) ENGINE=InnoDB;
-	`
-	if _, err = DB.Exec(promocodeQuery); err != nil {
-		log.Fatalf("❌ Ошибка создания таблицы promocodes: %v", err)
-	}
-	
-	log.Println("✅ Подключение к MySQL успешно")
+	log.Println("✅ Подключение к БД успешно")
 }
 
-// GetUserBalanceSQL получает баланс пользователя или создает его, если он новый
 func GetUserBalanceSQL(id int64, username string) (int, error) {
+	debug("GetUserBalanceSQL: id=%d", id)
 	var balance int
 	err := DB.QueryRow("SELECT balance FROM users WHERE id = ?", id).Scan(&balance)
 
 	if err == sql.ErrNoRows {
-		initialBalance := 1000
-		_, err = DB.Exec("INSERT INTO users (id, username, balance) VALUES (?, ?, ?)", id, username, initialBalance)
-		if err != nil {
-			return 0, err
-		}
-		return initialBalance, nil
+		debug("Пользователь не найден, создаем: %d", id)
+		_, err = DB.Exec("INSERT INTO users (id, username, balance) VALUES (?, ?, ?)", id, username, 1000)
+		return 1000, err
 	}
-
-	if err != nil {
-		return 0, err
-	}
-
-	return balance, nil
+	return balance, err
 }
-
-func GetUser(id int64) (int64, error) {
-	var telegram_id int64
-	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
-	return telegram_id, err
-}
-
-func GetUserCode(userID int64) (string, error) {
-    var code sql.NullString
-    err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
-    
-    if err != nil {
-        return "", err
-    }
-    
-    if !code.Valid {
-        return "", nil 
-    }
-    return code.String, nil
-}
-
-
-
 
 func ActivateCode(id int64, code string) error {
+	debug("Активация кода: %s для пользователя %d", code, id)
 	_, err := DB.Exec("UPDATE users SET promocode = ? WHERE id = ?", code, id)
 	return err
 }
 
-func CreateCode(code string, amount int) error {
-	_, err := DB.Exec("INSERT INTO promocodes (code, amount) VALUES (?, ?)", code, amount)
-	return err
-}
-
-func GetCode(code string) (int, error) {
-	var amount int
-	err := DB.QueryRow("SELECT amount FROM promocodes WHERE code = ?", code).Scan(&amount)
-	return amount, err
-}
-
 func DeleteCode(code string) error {
-	// _, err := DB.Exec("DELETE FROM promocodes WHERE code = ?", code)
-	// return err
-
+	debug("Удаление кода: %s", code)
 	tx, err := DB.Begin()
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
 	_, err = tx.Exec("DELETE FROM promocodes WHERE code = ?", code)
 	if err != nil {
@@ -140,33 +123,77 @@ func DeleteCode(code string) error {
 	}
 
 	_, err = tx.Exec("UPDATE users SET promocode = NULL WHERE promocode = ?", code)
-    if err != nil {
-        tx.Rollback()
-        return err
-    }
+	debug("Результат обнуления промокода у пользователей: err=%v", err)
+	
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	return tx.Commit()
-
-	
 }
 
-// UpdateBalanceSQL обновляет баланс пользователя
+
+
+func GetPromocodesUser(id int64) ([]UserPromo, error) {
+	code, err := GetUserCode(id)
+    if err != nil || code == "" {
+        return nil, err
+    }
+
+    amount, _ := GetCode(code)
+    
+    // Возвращаем список из одного элемента
+    return []UserPromo{{Code: code, Amount: amount}}, nil
+}
+
+func GetCode(code string) (int, error) {
+	debug("Проверка кода: %s", code)
+	var amount int
+	err := DB.QueryRow("SELECT amount FROM promocodes WHERE code = ?", code).Scan(&amount)
+	return amount, err
+}
+
+// Вспомогательные функции...
+func GetUser(id int64) (int64, error) {
+	var telegram_id int64
+	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
+	return telegram_id, err
+}
+
+func GetUserCode(userID int64) (string, error) {
+	var code sql.NullString
+	err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
+	if err != nil { return "", err }
+	return code.String, nil
+}
+
+func CreateCode(code string, amount int) error {
+	debug("Создание кода: %s, сумма: %d", code, amount)
+	_, err := DB.Exec("INSERT INTO promocodes (code, amount) VALUES (?, ?)", code, amount)
+	return err
+}
+
 func UpdateBalanceSQL(id int64, amount int) error {
 	_, err := DB.Exec("UPDATE users SET balance = balance + ? WHERE id = ?", amount, id)
 	return err
 }
 
-// IsUserBanned проверяет наличие пользователя в черном списке
 func IsUserBanned(id int64) (bool, error) {
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM blacklists WHERE user_id = ?)"
-	err := DB.QueryRow(query, id).Scan(&exists)
+	err := DB.QueryRow("SELECT EXISTS(SELECT 1 FROM blacklists WHERE user_id = ?)", id).Scan(&exists)
 	return exists, err
 }
 
 func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
+	if value, exists := os.LookupEnv(key); exists { return value }
 	return defaultValue
+}
+
+
+func CloseDB() {
+    if DB != nil {
+        log.Println("💾 Закрытие подключения к БД...")
+        DB.Close()
+    }
 }
