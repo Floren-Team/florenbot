@@ -32,7 +32,13 @@ func InitDB() {
 	}
 
 	// Создание таблиц
-	usersQuery := `CREATE TABLE IF NOT EXISTS users (id BIGINT PRIMARY KEY, username VARCHAR(255), balance INTEGER DEFAULT 1000) ENGINE=InnoDB;`
+	usersQuery := `CREATE TABLE IF NOT EXISTS users
+	 (id BIGINT PRIMARY KEY,
+	  username VARCHAR(255), 
+	  balance FLOAT DEFAULT 1000,
+	  promocode VARCHAR(32) UNIQUE NULL,
+	  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP) 
+	  ENGINE=InnoDB;`
 	if _, err = DB.Exec(usersQuery); err != nil {
 		log.Fatalf("❌ Ошибка создания таблицы users: %v", err)
 	}
@@ -40,6 +46,19 @@ func InitDB() {
 	blacklistQuery := `CREATE TABLE IF NOT EXISTS blacklists (id INT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, reason TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB;`
 	if _, err = DB.Exec(blacklistQuery); err != nil {
 		log.Fatalf("❌ Ошибка создания таблицы blacklists: %v", err)
+	}
+
+
+	promocodeQuery := `
+	CREATE TABLE IF NOT EXISTS promocodes (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		code VARCHAR(255) NOT NULL,
+		amount INT NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	) ENGINE=InnoDB;
+	`
+	if _, err = DB.Exec(promocodeQuery); err != nil {
+		log.Fatalf("❌ Ошибка создания таблицы promocodes: %v", err)
 	}
 	
 	log.Println("✅ Подключение к MySQL успешно")
@@ -64,6 +83,71 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 	}
 
 	return balance, nil
+}
+
+func GetUser(id int64) (int64, error) {
+	var telegram_id int64
+	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
+	return telegram_id, err
+}
+
+func GetUserCode(userID int64) (string, error) {
+    var code sql.NullString
+    err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
+    
+    if err != nil {
+        return "", err
+    }
+    
+    if !code.Valid {
+        return "", nil 
+    }
+    return code.String, nil
+}
+
+
+
+
+func ActivateCode(id int64, code string) error {
+	_, err := DB.Exec("UPDATE users SET promocode = ? WHERE id = ?", code, id)
+	return err
+}
+
+func CreateCode(code string, amount int) error {
+	_, err := DB.Exec("INSERT INTO promocodes (code, amount) VALUES (?, ?)", code, amount)
+	return err
+}
+
+func GetCode(code string) (int, error) {
+	var amount int
+	err := DB.QueryRow("SELECT amount FROM promocodes WHERE code = ?", code).Scan(&amount)
+	return amount, err
+}
+
+func DeleteCode(code string) error {
+	// _, err := DB.Exec("DELETE FROM promocodes WHERE code = ?", code)
+	// return err
+
+	tx, err := DB.Begin()
+    if err != nil {
+        return err
+    }
+
+	_, err = tx.Exec("DELETE FROM promocodes WHERE code = ?", code)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE users SET promocode = NULL WHERE promocode = ?", code)
+    if err != nil {
+        tx.Rollback()
+        return err
+    }
+
+	return tx.Commit()
+
+	
 }
 
 // UpdateBalanceSQL обновляет баланс пользователя
