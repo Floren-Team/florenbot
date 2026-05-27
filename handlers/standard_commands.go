@@ -28,15 +28,15 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/roulette` `[ставка] [цвет]` — Сыграть в рулетку\n"+
 		"🔹 `/bones` `[ставка]` — Бросить кости против бота 🎲\n\n"+
 		"НОВОЕ:\n\n"+
-		
+
 		"🔹 `/promo active` `[code]` — Ввести промокод 🎲\n\n"+
 		"🔹 `/promo create` `[code] [amount]` — Создать промокод с количеством монет 🎲\n\n"+
 		"🔹 `/promo delete` `[code]` — Удалить промокод 🎲\n\n"+
 
 		"Желаем удачи в игре! Пусть фортуна будет на вашей стороне! 🍀\n\n"+
-		"Версия бота: 2.1.2", 
+		"Версия бота: 2.1.2",
 		message.From.FirstName, balance)
-    
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
@@ -68,33 +68,33 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"├── **Имя:** %s\n"+
 		"├── **ID:** `%d`\n"+
 		"└── **Баланс:** %d монет 🪙\n"+
-		"Приятной вам игры в FlorenBot!", 
-		message.From.FirstName, 
-		message.From.ID, 
+		"Приятной вам игры в FlorenBot!",
+		message.From.FirstName,
+		message.From.ID,
 		balance,
 	)
-        
+
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 }
 
 func HandleQuit(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    
-    kickConfig := tgbotapi.KickChatMemberConfig{
-        ChatMemberConfig: tgbotapi.ChatMemberConfig{
-            ChatID: message.Chat.ID,
-            UserID: message.From.ID,
-        },
-    }
 
-    // Оголошуємо err перед використанням
-    _, err := bot.Request(kickConfig)
-    if err != nil {
-        log.Printf("Ошибка кика: %v", err)
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось кикнуть пользователя. Возможно, у бота нет прав или пользователь админ."))
-        return
-    }
+	kickConfig := tgbotapi.KickChatMemberConfig{
+		ChatMemberConfig: tgbotapi.ChatMemberConfig{
+			ChatID: message.Chat.ID,
+			UserID: message.From.ID,
+		},
+	}
 
-    bot.Send(tgbotapi.NewMessage(message.Chat.ID, "До свидания!"))
+	// Оголошуємо err перед використанням
+	_, err := bot.Request(kickConfig)
+	if err != nil {
+		log.Printf("Ошибка кика: %v", err)
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось кикнуть пользователя. Возможно, у бота нет прав или пользователь админ."))
+		return
+	}
+
+	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "До свидания!"))
 }

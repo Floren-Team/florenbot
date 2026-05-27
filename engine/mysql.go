@@ -20,13 +20,13 @@ func debug(format string, v ...interface{}) {
 }
 
 type UserPromo struct {
-    Code   string
-    Amount int
+	Code   string
+	Amount int
 }
 
 type Clans struct {
-	Id   int64
-	Name string
+	Id      int64
+	Name    string
 	OwnerId uint64
 }
 
@@ -48,15 +48,15 @@ func InitDB() {
 		log.Print("Использую локальную БД (SQLite)...")
 
 		if _, err := os.Stat("db"); os.IsNotExist(err) {
-            log.Println("Директория 'db' не найдена, создаю её...")
-            os.Mkdir("db", 0755)
-        }
+			log.Println("Директория 'db' не найдена, создаю её...")
+			os.Mkdir("db", 0755)
+		}
 		DB, err = sql.Open("sqlite3", "bot.db")
 
 		_, err = DB.Exec("PRAGMA journal_mode=WAL;")
-        if err != nil {
-            log.Printf("⚠️ Не удалось включить WAL-режим: %v", err)
-        } else {
+		if err != nil {
+			log.Printf("⚠️ Не удалось включить WAL-режим: %v", err)
+		} else {
 			log.Println("✅ WAL-режим включен")
 		}
 	}
@@ -71,7 +71,7 @@ func InitDB() {
 
 	// SQL-запросы для создания таблиц
 	var queries []string
-    if dbMode == "mysql" {
+	if dbMode == "mysql" {
 		queries = []string{
 			// 1. Спочатку створюємо незалежні таблиці
 			`CREATE TABLE IF NOT EXISTS clans (
@@ -107,6 +107,16 @@ func InitDB() {
 				reason TEXT NOT NULL, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
 				CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			) ENGINE=InnoDB;`,
+
+			`CREATE TABLE IF NOT EXISTS clans_members (
+				clan_id INT NOT NULL,
+				user_id BIGINT NOT NULL,
+				role VARCHAR(20) DEFAULT 'member',
+				joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 			) ENGINE=InnoDB;`,
 		}
 	} else {
@@ -144,6 +154,16 @@ func InitDB() {
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
 				FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 			);`,
+
+			`CREATE TABLE IF NOT EXISTS clans_members (
+				clan_id INTEGER NOT NULL,
+				user_id BIGINT NOT NULL,
+				role VARCHAR(20) DEFAULT 'member',
+				joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 		}
 	}
 	for _, query := range queries {
@@ -171,9 +191,9 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 
 func CreateClan(name string, owner_id uint64) error {
 	tx, err := DB.Begin()
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
 	res, err := tx.Exec("INSERT INTO clans (name, owner_id) VALUES (?, ?)", name, owner_id)
 	if err != nil {
@@ -182,12 +202,18 @@ func CreateClan(name string, owner_id uint64) error {
 	}
 
 	clan_id, err := res.LastInsertId()
-    if err != nil {
-        tx.Rollback()
-        return err
-    }
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", clan_id, owner_id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, owner_id)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -209,30 +235,49 @@ func GetClan(id uint64) (*Clans, error) {
 	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
 	return clan, err
 
-
 }
 
-func DeleteClan(id uint64) error { // Змінив uint64 на int64 (для SQL це зазвичай краще)
-    tx, err := DB.Begin()
-    if err != nil {
-        return err
-    }
+func JoinClan(clan_id uint64, user_id uint64) error {
+	_, err := DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
+	return err
+}
 
-    // 1. Спочатку обнуляємо clan_id у користувачів (щоб уникнути порушення FOREIGN KEY)
-    _, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
-    if err != nil {
-        tx.Rollback()
-        return err
-    }
+func LeaveClan(clan_id uint64, user_id uint64) error {
+	_, err := DB.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
+	return err
+}
 
-    // 2. Потім видаляємо сам клан
-    _, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
-    if err != nil {
-        tx.Rollback()
-        return err
-    }
+func getClanMember(clan_id uint64, user_id uint64) (uint16, error) {
+	var id uint16
+	err := DB.QueryRow("SELECT user_id FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id).Scan(&id)
+	return id, err
+}
 
-    return tx.Commit()
+func DeleteClan(id uint64) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM clans_members WHERE clan_id = ?", id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func ActivateCode(id int64, code string) error {
@@ -256,7 +301,7 @@ func DeleteCode(code string) error {
 
 	_, err = tx.Exec("UPDATE users SET promocode = NULL WHERE promocode = ?", code)
 	debug("Результат обнуления промокода у пользователей: err=%v", err)
-	
+
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -265,18 +310,16 @@ func DeleteCode(code string) error {
 	return tx.Commit()
 }
 
-
-
 func GetPromocodesUser(id int64) ([]UserPromo, error) {
 	code, err := GetUserCode(id)
-    if err != nil || code == "" {
-        return nil, err
-    }
+	if err != nil || code == "" {
+		return nil, err
+	}
 
-    amount, _ := GetCode(code)
-    
-    // Возвращаем список из одного элемента
-    return []UserPromo{{Code: code, Amount: amount}}, nil
+	amount, _ := GetCode(code)
+
+	// Возвращаем список из одного элемента
+	return []UserPromo{{Code: code, Amount: amount}}, nil
 }
 
 func GetCode(code string) (int, error) {
@@ -296,7 +339,9 @@ func GetUser(id int64) (int64, error) {
 func GetUserCode(userID int64) (string, error) {
 	var code sql.NullString
 	err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return code.String, nil
 }
 
@@ -318,14 +363,15 @@ func IsUserBanned(id int64) (bool, error) {
 }
 
 func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists { return value }
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
 	return defaultValue
 }
 
-
 func CloseDB() {
-    if DB != nil {
-        log.Println("💾 Закрытие подключения к БД...")
-        DB.Close()
-    }
+	if DB != nil {
+		log.Println("💾 Закрытие подключения к БД...")
+		DB.Close()
+	}
 }

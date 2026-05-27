@@ -108,26 +108,26 @@ func ChangeBalance(id int64, amount int) error {
 
 func CloseRedis() {
 	if RDB != nil {
-        log.Println("💾 Закрытие подключения к Redis...")
+		log.Println("💾 Закрытие подключения к Redis...")
 
 		RDB.Close()
 	}
 }
 
 func ShutdownCache() {
-    engine := getEnv("CACHE_ENGINE", "local")
-    
-    if engine == "redis" {
-        CloseRedis()
-    } else {
-        log.Println("🧹 Очистка локального кеша (папка cache)...")
-        // Очищаємо всі файли в папці cache
-        files, err := os.ReadDir("cache")
-        if err != nil {
-            return
-        }
-        for _, f := range files {
-            os.Remove("cache/" + f.Name())
-        }
-    }
+	engine := getEnv("CACHE_ENGINE", "local")
+
+	if engine == "redis" {
+		CloseRedis()
+	} else {
+		log.Println("🧹 Очистка локального кеша (папка cache)...")
+		// Очищаємо всі файли в папці cache
+		files, err := os.ReadDir("cache")
+		if err != nil {
+			return
+		}
+		for _, f := range files {
+			os.Remove("cache/" + f.Name())
+		}
+	}
 }

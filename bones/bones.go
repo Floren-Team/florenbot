@@ -37,10 +37,6 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	
-
-
-
 	// 1. Бросок игрока
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("%s бросает кости...", message.From.FirstName)))
 	playerDiceMsg := tgbotapi.NewDice(message.Chat.ID) // Отправляет анимированный кубик
