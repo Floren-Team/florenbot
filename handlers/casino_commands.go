@@ -31,12 +31,10 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-
 	if bet < 50 {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет"))
 		return
 	}
-
 
 	if bet > balance {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %d", balance)))
@@ -119,7 +117,7 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if choice == landedColor {
 		multiplier := 1
 		if landedColor == "зеленое" {
-			multiplier = 35 
+			multiplier = 35
 		}
 		winAmount := bet * multiplier
 		engine.ChangeBalance(message.From.ID, winAmount)
