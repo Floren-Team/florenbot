@@ -34,7 +34,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/promo delete` `[code]` — Удалить промокод 🎲\n\n"+
 
 		"Желаем удачи в игре! Пусть фортуна будет на вашей стороне! 🍀\n\n"+
-		"Версия бота: 2.0.0", 
+		"Версия бота: 2.1.2", 
 		message.From.FirstName, balance)
     
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
