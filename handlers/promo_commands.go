@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -14,6 +15,18 @@ import (
 type Promocode struct {
 	Code   string
 	Amount int
+}
+
+func GetEnvBool_2(key string, defaultValue bool) bool {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return boolValue
 }
 
 func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -24,6 +37,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: active, create, delete, list"))
 		return
 	}
+
+	debug_type := GetEnvBool_2("DEBUG", false)
+	
 
 	action := parts[0]
 
@@ -37,7 +53,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		user_id := int64(message.From.ID)
 		_, err_2 := engine.GetUser(user_id)
 		if err_2 != nil {
-			log.Printf("Ошибка получения пользователя: %v", err_2)
+			if debug_type {
+				log.Printf("Ошибка получения пользователя: %v", err_2)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
 			return
 		}
@@ -45,6 +63,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		code := parts[1]
 		amount, err := strconv.Atoi(parts[2])
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка парсинга суммы: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Сумма должна быть числом"))
 			return
 		}
@@ -54,7 +75,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// Если ошибка не связана с отсутствием записи (sql: no rows), значит это системная ошибка
 		if err != nil && err.Error() != "sql: no rows in result set" {
-			log.Printf("Ошибка БД при получении кода: %v", err) // Пишем в лог для разработчика
+			if debug_type {
+				log.Printf("Ошибка БД при получении кода: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при запросе к БД"))
 			return
 		}
@@ -68,7 +91,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// Создаем код
 		err = engine.CreateCode(code, amount)
 		if err != nil {
-			log.Printf("Ошибка при создании кода: %v", err)
+			if debug_type {
+				log.Printf("Ошибка при создании кода: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при создании"))
 			return
 		}
@@ -80,20 +105,23 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		// Перевіряємо, чи користувач авторизований (ваша перевірка)
 		userID := int64(message.From.ID)
 		_, err := engine.GetUser(userID)
 		if err != nil {
-			log.Printf("Ошибка получения пользователя: %v", err)
+			if debug_type {
+				log.Printf("Ошибка получения пользователя: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
 			return
 		}
 
 		code := parts[1]
 
-		// Перевіряємо існування промокоду
 		_, err = engine.GetCode(code)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка БД при поиске кода: %v", err)
+			}
 			if err.Error() == "sql: no rows in result set" {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
 			} else {
@@ -103,10 +131,11 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		// Викликаємо функцію, яка видаляє код і очищує його у користувачів
 		err = engine.DeleteCode(code)
 		if err != nil {
-			log.Printf("Ошибка при удалении: %v", err)
+			if debug_type {
+				log.Printf("Ошибка при удалении: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении промокода"))
 			return
 		}
@@ -124,6 +153,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// 1. Проверка авторизации
 		_, err := engine.GetUser(user_id)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка получения пользователя: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
 			return
 		}
@@ -138,6 +170,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// 3. Получение суммы промокода
 		amount, err := engine.GetCode(code)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка БД при поиске кода: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
 			return
 		}
@@ -145,6 +180,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// 4. Активация: записываем код пользователю (только в БД)
 		err = engine.ActivateCode(user_id, code)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при активации: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при активации"))
 			return
 		}
@@ -153,7 +191,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// Сначала получаем текущий баланс (из кэша, если есть, или из БД)
 		currentBalance, err := engine.GetBalance(user_id, message.From.UserName)
 		if err != nil {
-			log.Printf("Ошибка получения баланса: %v", err)
+			if debug_type {
+				log.Printf("Ошибка получения баланса: %v", err)
+			}
 		}
 
 		// Рассчитываем новый баланс
@@ -162,7 +202,9 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		// Обновляем БД
 		err = engine.UpdateBalanceSQL(user_id, amount)
 		if err != nil {
-			log.Printf("Ошибка обновления БД: %v", err)
+			if debug_type {
+				log.Printf("Ошибка обновления БД: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при начислении бонуса"))
 			return
 		}
@@ -171,13 +213,16 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		key := fmt.Sprintf("user_%d_balance", user_id)
 		engine.SetCache(key, strconv.Itoa(newBalance), 24*time.Hour)
 
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%d. Ваш баланс: %d", amount, newBalance)))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%d рублей. Ваш баланс: %d", amount, newBalance)))
 
 	case "list":
 		user_id := int64(message.From.ID)
 		promocodes, err := engine.GetPromocodesUser(user_id)
 
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при получении промокодов: %v", err)
+			}
 			log.Printf("Ошибка при получении промокодов: %v", err)
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении промокодов"))
 			return
@@ -191,8 +236,6 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		var sb strings.Builder
 		sb.WriteString("📋 **Ваши промокоды:**\n\n")
 
-		// Виправляємо цикл: називаємо змінну 'p',
-		// щоб вона відповідала назві всередині циклу
 		for _, p := range promocodes {
 			sb.WriteString(fmt.Sprintf("├── `%s` — %d монет\n", p.Code, p.Amount))
 		}

@@ -5,10 +5,26 @@ import (
 	"florenbot/engine"
 	"florenbot/helpers"
 	"fmt"
+	"os"
+	"strconv"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strings"
 )
+
+
+func GetEnvBool(key string, defaultValue bool) bool {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return boolValue
+}
+
 
 // HandleClan обрабатывает команду /clan
 func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -20,6 +36,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"delcode", "revoke", "kick", "add", "ban",
 	}
 	user_id := uint64(message.From.ID)
+	debug_type := GetEnvBool("DEBUG_TYPE", false)
 
 	if len(parts) < 1 {
 		// bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /clan create [имя]\nВсе действия: "+available_actions))
@@ -27,12 +44,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		clan_id, err := engine.GetUserClanID(user_id)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка получения клана: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 			return
 		}
 
 		clan, err := engine.GetClan(clan_id)
 		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка получения клана: %v", err)
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Клан не найден"))
 			return
 		}
@@ -63,7 +86,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			// 1. Проверяем: если ошибка есть, НО это не "нет строк" (sql.ErrNoRows),
 			// значит произошла реальная ошибка БД (соединение, запрос и т.д.)
 			if err != nil && err != sql.ErrNoRows {
-				log.Printf("Ошибка получения клана из БД: %v", err)
+				if debug_type {
+					log.Printf("Ошибка получения клана из БД: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обращении к базе данных"))
 				return
 			}
@@ -94,7 +119,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			// 4. Обязательно проверяем, удалось ли создать клан в БД
 			if err != nil {
-				log.Printf("Ошибка создания клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка создания клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать клан"))
 				return
 			}
@@ -106,12 +133,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		{
 			_, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			role, err := engine.GetUserClanRole(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -124,12 +157,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			clan_id, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			role, err := engine.GetUserClanRole(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -166,6 +205,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			_, err = engine.GetUserClanID(user_reply_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprint("❌ Пользователь не состоит в клане"))
 				msg.ReplyToMessageID = message.MessageID
 				bot.Send(msg)
@@ -181,7 +223,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		{
 			clans, err := engine.GetClans()
 			if err != nil {
-				log.Printf("Ошибка получения кланов: %v", err)
+				if debug_type {
+					log.Printf("Ошибка получения кланов: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -211,13 +255,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			clan_id, err := engine.GetUserClanID(user_id)
 
 			if err != nil {
-				log.Printf("Ошибка получения клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			role, err := engine.GetUserClanRole(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения роли: %v", err)
+				}
 				log.Printf("Ошибка получения роли: %v", err)
 				msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так...")
 				msg.ReplyToMessageID = message.MessageID
@@ -251,6 +300,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			_, err = engine.GetUserClanID(user_reply_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprint("❌ Пользователь не состоит в клане"))
 				msg.ReplyToMessageID = message.MessageID
 				bot.Send(msg)
@@ -275,6 +327,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			err = engine.BlockMemberClan(clan_id, user_reply_id, reason)
 
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка бана ЮЗЕРА: %v", err)
+				}
 				log.Printf("Ошибка блокировки пользователя: %v", err)
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
@@ -289,20 +344,27 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		{
 			_, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			clan_id, err := engine.GetClanByOwnerID(user_id)
 			if err != nil {
-				log.Printf("Ошибка получения клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка получения клана: %v", err)
+				}	
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не являетесь владельцем клана"))
 				return
 			}
 
 			err = engine.DeleteClan(clan_id)
 			if err != nil {
-				log.Printf("Ошибка удаления клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка удаления клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -337,7 +399,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			code := parts[1]
 			clan_id, err := engine.GetInviteCodeClan(code)
 			if err != nil {
-				log.Printf("Ошибка при приглашении в клан: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при приглашении в клан: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Клана с таким кодом не существует"))
 				return
 			}
@@ -345,14 +409,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			err = engine.CheckBlacklist(clan_id, user_id)
 
 			if err != nil {
-				log.Printf("Ошибка при приглашении в клан: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при приглашении в клан: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вас заблокировали!"))
 				return
 			}
 
 			err = engine.JoinClan(clan_id, user_id)
 			if err != nil {
-				log.Printf("Ошибка при приглашении в клан: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при приглашении в клан: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -367,20 +435,27 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 			clan_id, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			err = engine.RevokeInviteCode(clan_id)
 			if err != nil {
-				log.Printf("Ошибка при удалении клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
 
 			code, err := engine.GetClanInviteCode(clan_id)
 			if err != nil {
-				log.Printf("Ошибка при удалении приглашения: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при удалении приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -399,19 +474,27 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			clan_id, err := engine.GetUserClanID(user_id)
 
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			_, err = engine.GetClanInviteCode(clan_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет кода приглашения"))
 				return
 			}
 
 			err = engine.DeleteInviteCode(clan_id)
 			if err != nil {
-				log.Printf("Ошибка при удалении приглашения: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при удалении приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -427,6 +510,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			clan_id, err := engine.GetUserClanID(user_id)
 
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при приглашении в клан: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
@@ -436,7 +522,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				user_id := uint64(reply_msg.From.ID)
 				err = engine.AddUserToClan(clan_id, user_id)
 				if err != nil {
-					log.Printf("Ошибка при приглашении в клан: %v", err)
+					if debug_type {
+						log.Printf("Ошибка при приглашении в клан: %v", err)
+					}
 					bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 					return
 				}
@@ -455,19 +543,22 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			clan_id, err := engine.GetUserClanID(user_id)
 
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при создании приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			_, err = engine.GetClanInviteCode(clan_id)
 			if err != nil && err != sql.ErrNoRows {
-				log.Printf("Ошибка при создании приглашения: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при создании приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
 			if err == nil {
-				log.Printf("Ошибка при создании приглашения: %v", err)
-
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас уже есть приглашение"))
 				return
 			}
@@ -476,7 +567,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			err = engine.CreateInviteCode(clan_id, invite_code)
 
 			if err != nil {
-				log.Printf("Ошибка при создании приглашения: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при создании приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
@@ -487,17 +580,24 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			// 1. Ищем клан, в котором состоит пользователь (как участник)
 			clan_id, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при получении клана: %v", err)
+				}
 				// Если ошибки нет в базе, но клан не найден, значит пользователь не в клане
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
-			log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)
+			// if debug_type {
+			// 	log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)			
+			// }
 
 			// 2. Выполняем выход из клана
 			err = engine.LeaveClan(clan_id, user_id)
 			if err != nil {
-				log.Printf("Ошибка при выходе из клана: %v", err)
+				if debug_type {
+					log.Printf("Ошибка при выходе из клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что-то пошло не так при выходе из клана..."))
 				return
 			}
@@ -509,12 +609,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		{
 			clan_id, err := engine.GetUserClanID(user_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при получении клана: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			invite_code, err := engine.GetClanInviteCode(clan_id)
 			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при получении приглашения: %v", err)
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет приглашения"))
 				return
 			}
@@ -522,7 +628,6 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	default:
 		{
-			// Выводим список доступных действий в одну строку
 			formatted_actions := strings.Join(AvailableActions, ", ")
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /clan create [имя]\nВсе действия: "+formatted_actions))
 			return

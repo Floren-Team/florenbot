@@ -58,6 +58,11 @@ func GetUserClanID(userID uint64) (uint64, error) {
 	return clanID, err
 }
 
+func DeleteMembersClan(clan_id uint64) error {
+	_, err := DB.Exec("DELETE FROM clans_members WHERE clan_id = ?", clan_id)
+	return err
+}
+
 func KickClanUser(clan_id uint64, user_id uint64) error {
 	_, err := DB.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
 	return err
