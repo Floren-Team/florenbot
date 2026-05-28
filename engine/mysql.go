@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+
+
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -19,16 +21,9 @@ func debug(format string, v ...interface{}) {
 	}
 }
 
-type UserPromo struct {
-	Code   string
-	Amount int
-}
 
-type Clans struct {
-	Id      int64
-	Name    string
-	OwnerId uint64
-}
+
+
 
 func InitDB() {
 	var err error
@@ -78,6 +73,7 @@ func InitDB() {
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				name VARCHAR(255) NOT NULL, 
 				owner_id BIGINT NOT NULL, 
+				invite_code VARCHAR(32) NULL UNIQUE,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,
 
@@ -125,7 +121,8 @@ func InitDB() {
 			`CREATE TABLE IF NOT EXISTS clans (
 				id INTEGER PRIMARY KEY AUTOINCREMENT, 
 				name VARCHAR(255) NOT NULL, 
-				owner_id BIGINT NOT NULL, 
+				owner_id BIGINT NOT NULL,
+				invite_code VARCHAR(32) NULL UNIQUE,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			);`,
 
@@ -176,6 +173,9 @@ func InitDB() {
 	log.Println("✅ Подключение к БД успешно")
 }
 
+
+
+
 func GetUserBalanceSQL(id int64, username string) (int, error) {
 	debug("GetUserBalanceSQL: id=%d", id)
 	var balance int
@@ -189,163 +189,8 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 	return balance, err
 }
 
-func CreateClan(name string, owner_id uint64) error {
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
 
-	res, err := tx.Exec("INSERT INTO clans (name, owner_id) VALUES (?, ?)", name, owner_id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
 
-	clan_id, err := res.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", clan_id, owner_id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, owner_id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	tx.Commit()
-	return err
-}
-
-func GetClanByOwnerID(owner_id uint64) (uint64, error) {
-	var id uint64
-	err := DB.QueryRow("SELECT id FROM clans WHERE owner_id = ?", owner_id).Scan(&id)
-	return id, err
-}
-
-func GetClan(id uint64) (*Clans, error) {
-	clan := &Clans{}
-	query := "SELECT id, name, owner_id FROM clans WHERE id = ?"
-	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
-	return clan, err
-
-}
-
-func JoinClan(clan_id uint64, user_id uint64) error {
-	_, err := DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
-	return err
-}
-
-func LeaveClan(clan_id uint64, user_id uint64) error {
-	_, err := DB.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
-	return err
-}
-
-func GetClanMember(clan_id uint64, user_id uint64) (uint16, error) {
-	var id uint16
-	err := DB.QueryRow("SELECT user_id FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id).Scan(&id)
-	return id, err
-}
-
-func DeleteClan(id uint64) error {
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM clans_members WHERE clan_id = ?", id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func ActivateCode(id int64, code string) error {
-	debug("Активация кода: %s для пользователя %d", code, id)
-	_, err := DB.Exec("UPDATE users SET promocode = ? WHERE id = ?", code, id)
-	return err
-}
-
-func DeleteCode(code string) error {
-	debug("Удаление кода: %s", code)
-	tx, err := DB.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM promocodes WHERE code = ?", code)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE users SET promocode = NULL WHERE promocode = ?", code)
-	debug("Результат обнуления промокода у пользователей: err=%v", err)
-
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func GetUserClanID(userID uint64) (uint64, error) {
-	var clanID uint64
-	err := DB.QueryRow("SELECT clan_id FROM clans_members WHERE user_id = ?", userID).Scan(&clanID)
-	return clanID, err
-}
-
-func GetClanMemberCount(clanID int64) (int, error) {
-    var count int
-    query := "SELECT COUNT(*) FROM clans_members WHERE clan_id = ?"
-    
-    err := DB.QueryRow(query, clanID).Scan(&count)
-    if err != nil {
-        return 0, err
-    }
-    
-    return count, nil
-}
-
-func GetPromocodesUser(id int64) ([]UserPromo, error) {
-	code, err := GetUserCode(id)
-	if err != nil || code == "" {
-		return nil, err
-	}
-
-	amount, _ := GetCode(code)
-
-	// Возвращаем список из одного элемента
-	return []UserPromo{{Code: code, Amount: amount}}, nil
-}
-
-func GetCode(code string) (int, error) {
-	debug("Проверка кода: %s", code)
-	var amount int
-	err := DB.QueryRow("SELECT amount FROM promocodes WHERE code = ?", code).Scan(&amount)
-	return amount, err
-}
 
 // Вспомогательные функции...
 func GetUser(id int64) (int64, error) {
@@ -354,20 +199,8 @@ func GetUser(id int64) (int64, error) {
 	return telegram_id, err
 }
 
-func GetUserCode(userID int64) (string, error) {
-	var code sql.NullString
-	err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
-	if err != nil {
-		return "", err
-	}
-	return code.String, nil
-}
 
-func CreateCode(code string, amount int) error {
-	debug("Создание кода: %s, сумма: %d", code, amount)
-	_, err := DB.Exec("INSERT INTO promocodes (code, amount) VALUES (?, ?)", code, amount)
-	return err
-}
+
 
 func UpdateBalanceSQL(id int64, amount int) error {
 	_, err := DB.Exec("UPDATE users SET balance = balance + ? WHERE id = ?", amount, id)

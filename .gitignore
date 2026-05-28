@@ -15,3 +15,4 @@ test.go
 data
 cache
 redis.go.bak
+main.go.bak
