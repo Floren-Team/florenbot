@@ -2,7 +2,7 @@ package engine
 
 import (
 	"database/sql"
-	"florenbot/engine/model"
+	"florenbot/engine/structs"
 )
 
 func ActivateCode(id int64, code string) error {

@@ -73,6 +73,34 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Клан создан: %s", name)))
 			return
 		}
+	case "list":
+		{
+			clans, err := engine.GetClans()
+			if err != nil {
+				log.Printf("Ошибка получения кланов: %v", err)
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				return
+			}
+
+			if len(clans) == 0 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Кланов нет в этом боте!"))
+				return
+			}
+
+			info := fmt.Sprintf("✅ *Список кланов:*\n\n")
+			for _, clan := range clans {
+				clanDetails := fmt.Sprintf(
+					"🆔 ID: `%d`\n🏷 Название: *%s*\n👥 Участников: `%d`",
+					clan.Id, clan.Name, clan.MemberCount,
+				)
+
+				info += clanDetails
+			}
+			msg := tgbotapi.NewMessage(message.Chat.ID, info)
+			msg.ParseMode = "Markdown"
+			bot.Send(msg)
+			return
+		}
 	case "delete":
 		{
 			_, err := engine.GetUserClanID(user_id)
