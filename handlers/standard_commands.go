@@ -58,7 +58,7 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%d` монет.", balance)
+	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%d` рублей.", balance)
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
@@ -77,7 +77,6 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"└── **Баланс:** %d рублей 🪙\n"+
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
-		message.From.ID,
 		balance,
 	)
 
