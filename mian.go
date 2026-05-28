@@ -142,8 +142,6 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	
-
 	// Разбиваем строку на части по пробелам
 	parts := strings.Fields(text)
 
