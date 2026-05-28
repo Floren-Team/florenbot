@@ -33,7 +33,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🆕 **НОВОЕ:**\n"+
 		"🔹 `/clan` — Управление кланами\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 2.4\nДата: 2026.05.28",
+		"Версия бота: 2.5\nДата: 2026.05.28",
 		message.From.FirstName, balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
