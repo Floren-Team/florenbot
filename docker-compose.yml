@@ -4,20 +4,30 @@ services:
     container_name: florenbot
     restart: always
     depends_on:
-      - mariadb
-      - redis
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      BOT_TOKEN: ${BOT_TOKEN}
       DB_HOST: mariadb
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      CACHE_ENGINE: redis
+      REDIS_DB: 0
+      DEBUG: false
+      DB_ENGINE: mysql
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_ADDR: redis:6379
       GODEBUG: netdns=go
       FORCE_IPV4: "true"
-    volumes:
-      - ./db:/root/db
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   mariadb:
     image: mariadb:10.11
@@ -31,9 +41,19 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: always
     command: ["redis-server", "--bind", "0.0.0.0", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
