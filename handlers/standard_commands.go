@@ -20,7 +20,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// Красивое, структурированное приветствие с использованием эмодзи-разделителей
 	text := fmt.Sprintf("👋 **Приветствуем вас, %s!**\n\n"+
 		"Добро пожаловать в игровой клуб! 🎰\n"+
-		"На ваш счет зачислено: **%d монет** 💰\n\n"+
+		"Текущий баланс: **%d рублей** 💰\n\n"+
 		"📋 **Доступные команды:**\n"+
 		"🔹 `/balance` — Узнать баланс\n"+
 		"🔹 `/profile` — Просмотреть профиль\n"+
@@ -47,7 +47,7 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Дата обновления: 2026.05.28\n"+
 		"Автор: Egor Luchiy\n"+
 		"GitHub: -\n"+
-		"Поддежрка Hamster Bot Владелец: @Serh1t"))
+		"Поддержка: Hamster Bot Владелец: @Serh1t"))
 }
 
 // HandleBalance обрабатывает команду /balance
@@ -74,8 +74,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	text := fmt.Sprintf("👤 **Ваш игровой профиль:**\n"+
 		"├── **Имя:** %s\n"+
-		"├── **ID:** `%d`\n"+
-		"└── **Баланс:** %d монет 🪙\n"+
+		"└── **Баланс:** %d рублей 🪙\n"+
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
 		message.From.ID,
