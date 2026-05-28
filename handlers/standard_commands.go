@@ -29,12 +29,12 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/bones` `[ставка]` — Бросить кости против бота 🎲\n\n"+
 		"НОВОЕ:\n\n"+
 
-		"🔹 `/promo active` `[code]` — Ввести промокод 🎲\n\n"+
-		"🔹 `/promo create` `[code] [amount]` — Создать промокод с количеством монет 🎲\n\n"+
-		"🔹 `/promo delete` `[code]` — Удалить промокод 🎲\n\n"+
+		" `/promo active` `[code]` — Ввести промокод 🎲\n\n"+
+		" `/promo create` `[code] [amount]` — Создать промокод с количеством монет 🎲\n\n"+
+		" `/promo delete` `[code]` — Удалить промокод 🎲\n\n"+
 
 		"Желаем удачи в игре! Пусть фортуна будет на вашей стороне! 🍀\n\n"+
-		"Версия бота: 2.1.2",
+		"Версия бота: 2.3 2026.05.28",
 		message.From.FirstName, balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
