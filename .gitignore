@@ -17,3 +17,5 @@ cache
 redis.go.bak
 main.go.bak
 test.sh
+publish.sh
+tmp_binary
