@@ -27,12 +27,11 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/casino` `[ставка]` — Испытать удачу в слотах\n"+
 		"🔹 `/roulette` `[ставка] [цвет]` — Сыграть в рулетку\n"+
 		"🔹 `/bones` `[ставка]` — Бросить кости против бота 🎲\n\n"+
+		" `/promo active` `[code]` — Ввести промокод\n\n"+
+		" `/promo create` `[code] [amount]` — Создать промокод с количеством монет\n\n"+
+		" `/promo delete` `[code]` — Удалить промокод\n\n"+
 		"НОВОЕ:\n\n"+
-
-		" `/promo active` `[code]` — Ввести промокод 🎲\n\n"+
-		" `/promo create` `[code] [amount]` — Создать промокод с количеством монет 🎲\n\n"+
-		" `/promo delete` `[code]` — Удалить промокод 🎲\n\n"+
-
+		" `/clan — Управление кланами\n\n"+
 		"Желаем удачи в игре! Пусть фортуна будет на вашей стороне! 🍀\n\n"+
 		"Версия бота: 2.3 2026.05.28",
 		message.From.FirstName, balance)
@@ -40,6 +39,15 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
+}
+
+func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
+		"Версия: 2.3\n"+
+		"Дата обновления: 2026.05.28\n"+
+		"Автор: Egor Luchiy\n"+
+		"GitHub: -\n"+
+		"Поддежрка Hamster Bot Владелец: @Serh1t"))
 }
 
 // HandleBalance обрабатывает команду /balance

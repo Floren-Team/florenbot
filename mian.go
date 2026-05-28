@@ -135,6 +135,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandlePromo(bot, message)
 	case "clan":
 		handlers.HandleClan(bot, message)
+	case "info":
+		handlers.HandleInfo(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}
