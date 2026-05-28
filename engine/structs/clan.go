@@ -6,4 +6,5 @@ type Clans struct {
 	OwnerId     uint64
 	InviteCode  string
 	MemberCount int16
+	OwnerName   string
 }

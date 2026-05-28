@@ -67,6 +67,7 @@ func InitDB() {
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				name VARCHAR(255) NOT NULL, 
 				owner_id BIGINT NOT NULL, 
+				owner_name VARCHAR(32) NOT NULL, 
 				invite_code VARCHAR(32) NULL UNIQUE,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,
@@ -108,6 +109,16 @@ func InitDB() {
 				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
 				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 			) ENGINE=InnoDB;`,
+
+			`CREATE TABLE IF NOT EXISTS clans_blacklist (
+				clan_id INTEGER NOT NULL,
+				user_id BIGINT NOT NULL,
+				reason TEXT NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 		}
 	} else {
 		// SQLite (порядок створення критично важливий)
@@ -151,6 +162,16 @@ func InitDB() {
 				user_id BIGINT NOT NULL,
 				role VARCHAR(20) DEFAULT 'member',
 				joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
+
+			`CREATE TABLE IF NOT EXISTS clans_blacklist (
+				clan_id INTEGER NOT NULL,
+				user_id BIGINT NOT NULL,
+				reason TEXT NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				PRIMARY KEY (clan_id, user_id),
 				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
 				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

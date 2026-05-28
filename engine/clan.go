@@ -2,18 +2,19 @@ package engine
 
 import (
 	"database/sql"
+	"errors"
 	"florenbot/engine/structs"
 	"florenbot/helpers"
 	"log"
 )
 
-func CreateClan(name string, owner_id uint64) error {
+func CreateClan(name string, owner_name string, owner_id uint64) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return err
 	}
 
-	res, err := tx.Exec("INSERT INTO clans (name, owner_id) VALUES (?, ?)", name, owner_id)
+	res, err := tx.Exec("INSERT INTO clans (name, owner_id, owner_name) VALUES (?, ?, ?)", name, owner_id, owner_name)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -37,13 +38,35 @@ func CreateClan(name string, owner_id uint64) error {
 		return err
 	}
 
+	_, err = tx.Exec("UPDATE clans_members SET role = 'owner' WHERE clan_id = ? AND user_id = ?", clan_id, owner_id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	return tx.Commit()
+}
+
+func AddUserToClan(clan_id uint64, user_id uint64) error {
+	_, err := DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
+	return err
 }
 
 func GetUserClanID(userID uint64) (uint64, error) {
 	var clanID uint64
 	err := DB.QueryRow("SELECT clan_id FROM clans_members WHERE user_id = ?", userID).Scan(&clanID)
 	return clanID, err
+}
+
+func KickClanUser(clan_id uint64, user_id uint64) error {
+	_, err := DB.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
+	return err
+}
+
+func GetUserClanRole(userID uint64) (string, error) {
+	var role string
+	err := DB.QueryRow("SELECT role FROM clans_members WHERE user_id = ?", userID).Scan(&role)
+	return role, err
 }
 
 func GetClans() ([]model.Clans, error) {
@@ -83,6 +106,29 @@ func GetClans() ([]model.Clans, error) {
 	return clans, nil
 }
 
+func BlockMemberClan(clan_id uint64, user_id uint64, reason string) error {
+	tx, err := DB.Begin()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("INSERT INTO clans_blacklist (user_id, clan_id, reason) VALUES (?, ?, ?)", user_id, clan_id, reason)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
+
+}
+
 func GetClanMemberCount(clanID int64) (int, error) {
 	var count int
 	query := "SELECT COUNT(*) FROM clans_members WHERE clan_id = ?"
@@ -110,11 +156,25 @@ func GetClanByOwnerID(owner_id uint64) (uint64, error) {
 
 func GetClan(id uint64) (*model.Clans, error) {
 	clan := &model.Clans{}
-	query := "SELECT id, name, owner_id FROM clans WHERE id = ?"
-	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
+	query := "SELECT id, name, owner_name FROM clans WHERE id = ?"
+	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerName)
 	return clan, err
 }
 
+func CheckBlacklist(clan_id uint64, user_id uint64) error {
+	var exists bool
+	err := DB.QueryRow("SELECT EXISTS(SELECT 1 FROM clans_blacklist WHERE user_id = ? AND clan_id = ?)", user_id, clan_id).Scan(&exists)
+
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return errors.New("user_in_blacklist")
+	}
+
+	return nil
+}
 func JoinClan(clan_id uint64, user_id uint64) error {
 	_, err := DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
 	return err
@@ -145,11 +205,19 @@ func GetInviteCodeClan(code string) (uint64, error) {
 }
 
 func GetClanInviteCode(clan_id uint64) (string, error) {
-	var code string
-	err := DB.QueryRow("SELECT invite_code FROM clans WHERE id = ?", clan_id).Scan(&code)
-	return code, err
-}
+	var code sql.NullString
 
+	err := DB.QueryRow("SELECT invite_code FROM clans WHERE id = ?", clan_id).Scan(&code)
+	if err != nil {
+		return "", err
+	}
+
+	if !code.Valid {
+		return "", sql.ErrNoRows
+	}
+
+	return code.String, nil
+}
 func DeleteInviteCode(clan_id uint64) error {
 	_, err := DB.Exec("UPDATE clans SET invite_code = NULL WHERE id = ?", clan_id)
 	return err
