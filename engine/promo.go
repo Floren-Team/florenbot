@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"florenbot/engine/model"
 	"database/sql"
+	"florenbot/engine/model"
 )
 
 func ActivateCode(id int64, code string) error {
@@ -25,7 +25,6 @@ func GetUserCode(userID int64) (string, error) {
 	}
 	return code.String, nil
 }
-
 
 func DeleteCode(code string) error {
 	debug("Удаление кода: %s", code)
@@ -51,7 +50,6 @@ func DeleteCode(code string) error {
 	return tx.Commit()
 }
 
-
 func GetPromocodesUser(id int64) ([]model.UserPromo, error) {
 	code, err := GetUserCode(id)
 	if err != nil || code == "" {
@@ -70,5 +68,3 @@ func GetCode(code string) (int, error) {
 	err := DB.QueryRow("SELECT amount FROM promocodes WHERE code = ?", code).Scan(&amount)
 	return amount, err
 }
-
-

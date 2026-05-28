@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 
-
-
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -20,10 +18,6 @@ func debug(format string, v ...interface{}) {
 		log.Printf("[DEBUG] "+format, v...)
 	}
 }
-
-
-
-
 
 func InitDB() {
 	var err error
@@ -173,9 +167,6 @@ func InitDB() {
 	log.Println("✅ Подключение к БД успешно")
 }
 
-
-
-
 func GetUserBalanceSQL(id int64, username string) (int, error) {
 	debug("GetUserBalanceSQL: id=%d", id)
 	var balance int
@@ -189,18 +180,12 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 	return balance, err
 }
 
-
-
-
 // Вспомогательные функции...
 func GetUser(id int64) (int64, error) {
 	var telegram_id int64
 	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
 	return telegram_id, err
 }
-
-
-
 
 func UpdateBalanceSQL(id int64, amount int) error {
 	_, err := DB.Exec("UPDATE users SET balance = balance + ? WHERE id = ?", amount, id)

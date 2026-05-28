@@ -114,7 +114,6 @@ func CloseRedis() {
 	}
 }
 
-
 func ShutdownCache() {
 	engine := getEnv("CACHE_ENGINE", "local")
 
