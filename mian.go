@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -76,8 +77,9 @@ func main() {
 				continue
 			}
 
-			// Обработка команд
-			if update.Message.IsCommand() {
+			// Обработка команд: теперь проверяем оба префикса
+			text := update.Message.Text
+			if strings.HasPrefix(text, "/") || strings.HasPrefix(text, "!") {
 				handleCommands(bot, update.Message)
 			}
 		}
@@ -116,7 +118,39 @@ func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 }
 
 func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	switch message.Command() {
+	text := message.Text
+	log.Printf("Сообщение от @%s: %s", message.From.UserName, text)
+
+	// Проверяем, начинается ли сообщение с допустимого префикса
+	// if !strings.HasPrefix(text, "/") && !strings.HasPrefix(text, "!") {
+	// 	log.Print("Неизвестный префикс команды")
+	// 	return
+	// }
+
+	allowedPrefixes := []string{"/", "!"}
+
+	foundPrefix := ""
+	for _, p := range allowedPrefixes {
+		if strings.HasPrefix(text, p) {
+			foundPrefix = p
+			break
+		}
+	}
+
+	if foundPrefix == "" {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не могу обработать команду: используйте префиксы / или !"))
+		return
+	}
+
+	
+
+	// Разбиваем строку на части по пробелам
+	parts := strings.Fields(text)
+
+	// Получаем саму команду, убираем префикс (1 символ) и приводим к нижнему регистру
+	command := strings.ToLower(parts[0][1:])
+
+	switch command {
 	case "start":
 		handlers.HandleStart(bot, message)
 	case "balance":
