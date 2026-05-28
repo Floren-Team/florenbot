@@ -16,3 +16,4 @@ data
 cache
 redis.go.bak
 main.go.bak
+test.sh
