@@ -1,7 +1,8 @@
 package engine
 
 import (
-	"florenbot/engine/model"
+	"database/sql"
+	"florenbot/engine/structs"
 	"florenbot/helpers"
 	"log"
 )
@@ -43,6 +44,43 @@ func GetUserClanID(userID uint64) (uint64, error) {
 	var clanID uint64
 	err := DB.QueryRow("SELECT clan_id FROM clans_members WHERE user_id = ?", userID).Scan(&clanID)
 	return clanID, err
+}
+
+func GetClans() ([]model.Clans, error) {
+	query := `
+    SELECT 
+        c.id, 
+        c.name, 
+        c.owner_id, 
+        c.invite_code,
+        COUNT(cm.user_id) as member_count
+    FROM clans c
+    LEFT JOIN clans_members cm ON c.id = cm.clan_id
+    GROUP BY c.id`
+
+	rows, err := DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var clans []model.Clans
+	for rows.Next() {
+		var c model.Clans
+		var inviteCode sql.NullString
+
+		if err := rows.Scan(&c.Id, &c.Name, &c.OwnerId, &inviteCode, &c.MemberCount); err != nil {
+			return nil, err
+		}
+
+		if inviteCode.Valid {
+			c.InviteCode = inviteCode.String
+		}
+
+		clans = append(clans, c)
+	}
+
+	return clans, nil
 }
 
 func GetClanMemberCount(clanID int64) (int, error) {
