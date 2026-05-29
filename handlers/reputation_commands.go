@@ -4,9 +4,24 @@ import (
 	"florenbot/engine"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 )
+
+func getEnvBool(key string, defaultValue bool) bool {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return boolValue
+}
+
 func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// Список доступных действий для автоматической генерации сообщений
 	AvailableActions := []string{"полож", "отриц"}
@@ -14,6 +29,8 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// 1. Попередні перевірки (валідація)
 	args := message.CommandArguments()
 	parts := strings.Fields(args)
+
+	debug_type := GetEnvBool("DEBUG", false)
 
 	if message.Chat.Type == "private" {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пожалуйста, используйте бота в группе."))
@@ -55,38 +72,85 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	action := parts[0]
 
 	switch action {
-	case "отриц", "полож":
-		current_reputate, err := engine.GetReputation(reply_user_id)
-		if err != nil {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка получения репутации из базы"))
-			return
-		}
+		case "отриц": {
+			_, err := engine.GetUserByID(reply_user_id)
 
-		var total_reputate int
-		var msgText string
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения пользователя: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не найден"))
+				return
+			}
 
-		if action == "отриц" {
+			current_reputate, err := engine.GetReputation(reply_user_id)
+
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения репутации: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка получения репутации"))
+				return
+			}
+
 			if current_reputate <= 0 {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У пользователя нет репутации для уменьшения"))
 				return
 			}
-			total_reputate = current_reputate - reputate
-			msgText = fmt.Sprintf("✅ Репутация пользователя %s уменьшена на %d", message.ReplyToMessage.From.FirstName, reputate)
-		} else {
-			total_reputate = current_reputate + reputate
-			msgText = fmt.Sprintf("✅ Репутация пользователя %s увеличена на %d", message.ReplyToMessage.From.FirstName, reputate)
+
+			total_reputate := current_reputate - reputate
+			msgText := fmt.Sprintf("✅ Репутация пользователя %s уменьшена на %d", message.ReplyToMessage.From.FirstName, reputate)
+	
+
+			if err := engine.UpdateNetagiveReputation(reply_user_id, total_reputate); err != nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
+				return
+			}
+
+			msg := tgbotapi.NewMessage(message.Chat.ID, msgText)
+			msg.ReplyToMessageID = message.MessageID
+			bot.Send(msg)
+
 		}
+		case "полож": {
+			_, err := engine.GetUserByID(reply_user_id)
 
-		if err := engine.UpdateReputation(reply_user_id, total_reputate); err != nil {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
-			return
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения пользователя: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не найден"))
+				return
+			}
+
+			current_reputate, err := engine.GetReputation(reply_user_id)
+
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения репутации: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка получения репутации"))
+				return
+			}
+
+			
+
+			total_reputate := current_reputate + reputate
+			msgText := fmt.Sprintf("✅ Репутация пользователя %s увеличена на %d", message.ReplyToMessage.From.FirstName, reputate)
+	
+
+			if err := engine.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
+				return
+			}
+
+			msg := tgbotapi.NewMessage(message.Chat.ID, msgText)
+			msg.ReplyToMessageID = message.MessageID
+			bot.Send(msg)
+
 		}
-
-		msg := tgbotapi.NewMessage(message.Chat.ID, msgText)
-		msg.ReplyToMessageID = message.MessageID
-		bot.Send(msg)
-
-	default:
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Доступные действия: "+strings.Join(AvailableActions, ", ")))
+		default: {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Использование: `/rep [%s] [количество]`", strings.Join(AvailableActions, ","))))	
+		}
 	}
 }
