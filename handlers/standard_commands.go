@@ -34,7 +34,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🆕 **НОВОЕ:**\n"+
 		"🔹 `/clan` — Управление кланами\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 2.5\nДата: 2026.05.28",
+		"Версия бота: 3.0\nДата: 2026.05.29",
 		message.From.FirstName, balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
@@ -44,8 +44,8 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 2.3\n"+
-		"Дата обновления: 2026.05.28\n"+
+		"Версия: 3.0\n"+
+		"Дата обновления: 2026.05.29\n"+
 		"Автор: Egor Luchiy\n"+
 		"GitHub: -\n"+
 		"Поддержка: Hamster Bot Владелец: @Serh1t"))
@@ -81,11 +81,11 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	total_reputation := negative_reputation + positive_reputation
 	status_text := ""
-	if total_reputation >= 10 {
+	if positive_reputation >= 10 {
 		userProfile.Status = 3
-	} else if total_reputation >= 5 {
+	} else if positive_reputation >= 5 {
 		userProfile.Status = 2
-	} else if total_reputation >= 1 {
+	} else if negative_reputation >= 100 {
 		userProfile.Status = 1
 	} else {
 		userProfile.Status = 0
@@ -96,17 +96,17 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	} else if userProfile.Status == 2 {
 		status_text = "Хорошо"
 	} else if userProfile.Status == 1 {
-		status_text = "Нормально"
+		status_text = "Плохо"
 	} else {
 		status_text = "Неизвестно"
 	}
 
-	text := fmt.Sprintf("👤 **Это %s:**\n"+
-		"└── **Баланс:** %.2f рублей 🪙\n"+
-		"└── **Негативных репутации:** %d\n"+
-		"└── **Позитивных репутации:** %d\n\n"+
-		"└── **Всего репутации:** %d\n"+
-		"└── **Статус:** %d\n"+
+	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
+		"└── **Баланс:** `%.2f` рублей 🪙\n"+
+		"└── **Негативных репутации:** `%d`\n"+
+		"└── **Позитивных репутации:** `%d`\n\n"+
+		"└── **Всего репутации:** `%d`\n"+
+		"└── **Статус:** %s\n"+
 
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
