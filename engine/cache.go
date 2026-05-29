@@ -76,7 +76,7 @@ func ClearCache(key string) {
 }
 
 // GetBalance с использованием универсального кэша
-func GetBalance(id int64, username string) (int, error) {
+func GetBalance(id uint64, username string) (int, error) {
 	key := fmt.Sprintf("user_%d_balance", id)
 
 	val, err := GetCache(key)
@@ -90,12 +90,13 @@ func GetBalance(id int64, username string) (int, error) {
 		return 0, err
 	}
 
+	
 	SetCache(key, strconv.Itoa(balance), 24*time.Hour)
 	return balance, nil
 }
 
 // ChangeBalance обновляет баланс и инвалидирует кэш
-func ChangeBalance(id int64, amount int) error {
+func ChangeBalance(id uint64, amount int) error {
 	err := UpdateBalanceSQL(id, amount)
 	if err != nil {
 		return err

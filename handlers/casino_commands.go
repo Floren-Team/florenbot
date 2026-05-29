@@ -25,7 +25,9 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	user_id := uint64(message.From.ID)
+
+	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось проверить ваш баланс."))
 		return
@@ -50,14 +52,14 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if res1 == res2 && res2 == res3 {
 		winAmount := bet * 5
-		engine.ChangeBalance(message.From.ID, winAmount)
+		engine.ChangeBalance(user_id, winAmount)
 		resultStr += fmt.Sprintf("🎉 ДЖЕКПОТ! Вы выиграли %d монет!", winAmount)
 	} else if res1 == res2 || res2 == res3 || res1 == res3 {
 		winAmount := bet * 1 // Возврат ставки + выигрыш x2 чистыми
-		engine.ChangeBalance(message.From.ID, winAmount)
+		engine.ChangeBalance(user_id, winAmount)
 		resultStr += fmt.Sprintf("💵 Победа! Вы выиграли %d монет!", bet*2)
 	} else {
-		engine.ChangeBalance(message.From.ID, -bet)
+		engine.ChangeBalance(user_id, -bet)
 		resultStr += fmt.Sprintf("📉 Проигрыш. Вы потеряли %d монет.", bet)
 	}
 
@@ -67,6 +69,7 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 // HandleRoulette - Рулетка (/roulette 100 красное)
 func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := strings.Fields(message.CommandArguments())
+	user_id := uint64(message.From.ID)
 	// Если аргументов меньше 2 (например, ввели только ставку или вообще буквы)
 	if len(args) < 2 {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/roulette [ставка] [красное/черное/зеленое]`\n\nПример: `/roulette 100 красное`"))
@@ -85,7 +88,7 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка авторизации игрового профиля."))
 		return
@@ -120,10 +123,10 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			multiplier = 35
 		}
 		winAmount := bet * multiplier
-		engine.ChangeBalance(message.From.ID, winAmount)
+		engine.ChangeBalance(user_id, winAmount)
 		output += fmt.Sprintf("🎉 Вы угадали! Выигрыш: +%d монет.", winAmount+bet)
 	} else {
-		engine.ChangeBalance(message.From.ID, -bet)
+		engine.ChangeBalance(user_id, -bet)
 		output += fmt.Sprintf("📉 Не повезло. Ставка потеряна: -%d монет.", bet)
 	}
 
