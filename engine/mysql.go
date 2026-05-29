@@ -84,7 +84,6 @@ func InitDB() {
 				username VARCHAR(255), 
 				balance FLOAT DEFAULT 1000, 
 				promocode VARCHAR(32), 
-				reputation INT DEFAULT 0,
 				negative_reputation INT DEFAULT 0, 
 				positive_reputation INT DEFAULT 0, 
 				clan_id INT DEFAULT NULL, 
@@ -144,6 +143,8 @@ func InitDB() {
 				balance INT DEFAULT 1000, 
 				promocode VARCHAR(32), 
 				clan_id INTEGER, 
+				negative_reputation INT DEFAULT 0, 
+				positive_reputation INT DEFAULT 0, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE SET NULL,
 				FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE SET NULL
@@ -193,7 +194,6 @@ func GetUserBalanceSQL(id uint64, username string) (int, error) {
 	var balance int
 	err := DB.QueryRow("SELECT balance FROM users WHERE id = ?", id).Scan(&balance)
 
-	
 	if err == sql.ErrNoRows {
 		debug("Пользователь не найден, создаем: %d", id)
 		_, err = DB.Exec("INSERT INTO users (id, username, balance) VALUES (?, ?, ?)", id, username, 1000)

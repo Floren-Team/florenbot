@@ -271,7 +271,9 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				bot.Send(msg)
 				return
 			}
-			log.Printf("Роль: %s", role)
+			if debug_type {
+				log.Printf("Роль: %s", role)
+			}
 			if role != "admin" && role != "owner" {
 				msg := tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав администратора/владельца клана")
 				msg.ReplyToMessageID = message.MessageID

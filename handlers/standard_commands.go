@@ -76,18 +76,45 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
+	negative_reputation := userProfile.NegativeReputation
+	positive_reputation := userProfile.PositiveReputation
+
+	total_reputation := negative_reputation + positive_reputation
+	status_text := ""
+	if total_reputation >= 10 {
+		userProfile.Status = 3
+	} else if total_reputation >= 5 {
+		userProfile.Status = 2
+	} else if total_reputation >= 1 {
+		userProfile.Status = 1
+	} else {
+		userProfile.Status = 0
+	}
+
+	if userProfile.Status == 3 {
+		status_text = "Отлично"
+	} else if userProfile.Status == 2 {
+		status_text = "Хорошо"
+	} else if userProfile.Status == 1 {
+		status_text = "Нормально"
+	} else {
+		status_text = "Неизвестно"
+	}
+
 	text := fmt.Sprintf("👤 **Это %s:**\n"+
 		"└── **Баланс:** %.2f рублей 🪙\n"+
-		"└── **Репутации:** %d\n"+
 		"└── **Негативных репутации:** %d\n"+
-		"└── **Позитивных репутации:** %d\n"+
+		"└── **Позитивных репутации:** %d\n\n"+
+		"└── **Всего репутации:** %d\n"+
+		"└── **Статус:** %d\n"+
 
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
 		userProfile.Balance,
-		userProfile.Reputation,
 		userProfile.NegativeReputation,
 		userProfile.PositiveReputation,
+		total_reputation,
+		status_text,
 	)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)

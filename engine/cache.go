@@ -90,7 +90,6 @@ func GetBalance(id uint64, username string) (int, error) {
 		return 0, err
 	}
 
-	
 	SetCache(key, strconv.Itoa(balance), 24*time.Hour)
 	return balance, nil
 }
