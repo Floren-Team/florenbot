@@ -79,19 +79,20 @@ func InitDB() {
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,
 
-			// 2. Таблиця users з FOREIGN KEY
 			`CREATE TABLE IF NOT EXISTS users (
 				id BIGINT PRIMARY KEY, 
 				username VARCHAR(255), 
 				balance FLOAT DEFAULT 1000, 
 				promocode VARCHAR(32), 
+				reputation INT DEFAULT 0,
+				negative_reputation INT DEFAULT 0, 
+				positive_reputation INT DEFAULT 0, 
 				clan_id INT DEFAULT NULL, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL,
 				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL
 			) ENGINE=InnoDB;`,
 
-			// 3. Таблиця, що залежить від users
 			`CREATE TABLE IF NOT EXISTS blacklists (
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				user_id BIGINT NOT NULL, 
@@ -121,7 +122,6 @@ func InitDB() {
 			);`,
 		}
 	} else {
-		// SQLite (порядок створення критично важливий)
 		queries = []string{
 			`CREATE TABLE IF NOT EXISTS clans (
 				id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -141,7 +141,7 @@ func InitDB() {
 			`CREATE TABLE IF NOT EXISTS users (
 				id BIGINT PRIMARY KEY, 
 				username VARCHAR(255), 
-				balance FLOAT DEFAULT 1000, 
+				balance INT DEFAULT 1000, 
 				promocode VARCHAR(32), 
 				clan_id INTEGER, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -188,11 +188,12 @@ func InitDB() {
 	log.Println("✅ Подключение к БД успешно")
 }
 
-func GetUserBalanceSQL(id int64, username string) (int, error) {
+func GetUserBalanceSQL(id uint64, username string) (int, error) {
 	debug("GetUserBalanceSQL: id=%d", id)
 	var balance int
 	err := DB.QueryRow("SELECT balance FROM users WHERE id = ?", id).Scan(&balance)
 
+	
 	if err == sql.ErrNoRows {
 		debug("Пользователь не найден, создаем: %d", id)
 		_, err = DB.Exec("INSERT INTO users (id, username, balance) VALUES (?, ?, ?)", id, username, 1000)
@@ -202,13 +203,13 @@ func GetUserBalanceSQL(id int64, username string) (int, error) {
 }
 
 // Вспомогательные функции...
-func GetUser(id int64) (int64, error) {
-	var telegram_id int64
-	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
-	return telegram_id, err
-}
+// func GetUser(id uint64) (int64, error) {
+// 	var telegram_id int64
+// 	err := DB.QueryRow("SELECT id FROM users WHERE id = ?", id).Scan(&telegram_id)
+// 	return telegram_id, err
+// }
 
-func UpdateBalanceSQL(id int64, amount int) error {
+func UpdateBalanceSQL(id uint64, amount int) error {
 	_, err := DB.Exec("UPDATE users SET balance = balance + ? WHERE id = ?", amount, id)
 	return err
 }

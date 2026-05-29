@@ -5,7 +5,7 @@ import (
 	"florenbot/engine/structs"
 )
 
-func ActivateCode(id int64, code string) error {
+func ActivateCode(id uint64, code string) error {
 	debug("Активация кода: %s для пользователя %d", code, id)
 	_, err := DB.Exec("UPDATE users SET promocode = ? WHERE id = ?", code, id)
 	return err
@@ -17,7 +17,7 @@ func CreateCode(code string, amount int) error {
 	return err
 }
 
-func GetUserCode(userID int64) (string, error) {
+func GetUserCode(userID uint64) (string, error) {
 	var code sql.NullString
 	err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)
 	if err != nil {
@@ -50,7 +50,7 @@ func DeleteCode(code string) error {
 	return tx.Commit()
 }
 
-func GetPromocodesUser(id int64) ([]model.UserPromo, error) {
+func GetPromocodesUser(id uint64) ([]model.UserPromo, error) {
 	code, err := GetUserCode(id)
 	if err != nil || code == "" {
 		return nil, err

@@ -4,10 +4,10 @@ import (
 	"florenbot/engine"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -39,7 +39,6 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	debug_type := GetEnvBool_2("DEBUG", false)
-	
 
 	action := parts[0]
 
@@ -50,8 +49,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		user_id := int64(message.From.ID)
-		_, err_2 := engine.GetUser(user_id)
+		user_id := uint64(message.From.ID)
+		_, err_2 := engine.GetUserByID(user_id)
 		if err_2 != nil {
 			if debug_type {
 				log.Printf("Ошибка получения пользователя: %v", err_2)
@@ -105,8 +104,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		userID := int64(message.From.ID)
-		_, err := engine.GetUser(userID)
+		userID := uint64(message.From.ID)
+		_, err := engine.GetUserByID(userID)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения пользователя: %v", err)
@@ -148,10 +147,10 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 		code := parts[1]
-		user_id := int64(message.From.ID)
+		user_id := uint64(message.From.ID)
 
 		// 1. Проверка авторизации
-		_, err := engine.GetUser(user_id)
+		_, err := engine.GetUserByID(user_id)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения пользователя: %v", err)
@@ -216,7 +215,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%d рублей. Ваш баланс: %d", amount, newBalance)))
 
 	case "list":
-		user_id := int64(message.From.ID)
+		user_id := uint64(message.From.ID)
 		promocodes, err := engine.GetPromocodesUser(user_id)
 
 		if err != nil {

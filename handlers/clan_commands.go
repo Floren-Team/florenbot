@@ -5,13 +5,12 @@ import (
 	"florenbot/engine"
 	"florenbot/helpers"
 	"fmt"
-	"os"
-	"strconv"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 )
-
 
 func GetEnvBool(key string, defaultValue bool) bool {
 	value, exists := os.LookupEnv(key)
@@ -24,7 +23,6 @@ func GetEnvBool(key string, defaultValue bool) bool {
 	}
 	return boolValue
 }
-
 
 // HandleClan обрабатывает команду /clan
 func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -355,7 +353,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
-				}	
+				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не являетесь владельцем клана"))
 				return
 			}
@@ -589,7 +587,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// if debug_type {
-			// 	log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)			
+			// 	log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)
 			// }
 
 			// 2. Выполняем выход из клана

@@ -20,8 +20,10 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
+	user_id := uint64(message.From.ID)
+
 	// Проверяем баланс игрока
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось проверить ваш баланс."))
 		return
@@ -66,11 +68,11 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if playerValue > botValue {
 		// Игрок выиграл (получает x2 от ставки, то есть чистый плюс равен ставке)
-		engine.ChangeBalance(message.From.ID, bet)
+		engine.ChangeBalance(user_id, bet)
 		resultText += fmt.Sprintf(" **Победа!** Вы оказались удачливее бота и выиграли **%d монет**!", bet)
 	} else if playerValue < botValue {
 		// Игрок проиграл
-		engine.ChangeBalance(message.From.ID, -bet)
+		engine.ChangeBalance(user_id, -bet)
 		resultText += fmt.Sprintf(" **Проигрыш.** Бот победил. Вы потеряли **%d монет**.", bet)
 	} else {
 		// Ничья (деньги не списываются)

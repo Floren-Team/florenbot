@@ -11,7 +11,8 @@ import (
 
 // HandleStart обрабатывает команду /start
 func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	user_id := uint64(message.From.ID)
+	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		log.Printf("Ошибка при старте: %v", err)
 		return
@@ -52,7 +53,8 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	user_id := uint64(message.From.ID)
+	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		log.Printf("Ошибка получения баланса: %v", err)
 		return
@@ -66,18 +68,26 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // HandleProfile обрабатывает команду /profile
 func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	balance, err := engine.GetBalance(message.From.ID, message.From.UserName)
+	user_id := uint64(message.From.ID)
+	userProfile, err := engine.GetUserByID(user_id)
 	if err != nil {
 		log.Printf("Ошибка профиля: %v", err)
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
 		return
 	}
 
-	text := fmt.Sprintf("👤 **Ваш игровой профиль:**\n"+
-		"├── **Имя:** %s\n"+
-		"└── **Баланс:** %d рублей 🪙\n"+
+	text := fmt.Sprintf("👤 **Это %s:**\n"+
+		"└── **Баланс:** %.2f рублей 🪙\n"+
+		"└── **Репутации:** %d\n"+
+		"└── **Негативных репутации:** %d\n"+
+		"└── **Позитивных репутации:** %d\n"+
+
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
-		balance,
+		userProfile.Balance,
+		userProfile.Reputation,
+		userProfile.NegativeReputation,
+		userProfile.PositiveReputation,
 	)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
