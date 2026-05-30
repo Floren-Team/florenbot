@@ -23,3 +23,4 @@ build_go.sh
 *.ini
 *.txt
 prepare.sh
+generate_changelog.sh
