@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"florenbot/engine"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"os"
 	"strconv"
@@ -25,7 +25,7 @@ func getEnvBool(key string, defaultValue bool) bool {
 func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// Список доступных действий для автоматической генерации сообщений
 	AvailableActions := []string{"полож", "отриц"}
-	
+
 	// 1. Попередні перевірки (валідація)
 	args := message.CommandArguments()
 	parts := strings.Fields(args)
@@ -42,8 +42,6 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, helpText))
 		return
 	}
-
-
 
 	if message.ReplyToMessage == nil || message.ReplyToMessage.From == nil {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "⚠️ Пожалуйста, ответьте на сообщение пользователя."))
@@ -72,7 +70,8 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	action := parts[0]
 
 	switch action {
-		case "отриц": {
+	case "отриц":
+		{
 			_, err := engine.GetUserByID(reply_user_id)
 
 			if err != nil {
@@ -100,7 +99,6 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			total_reputate := current_reputate - reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s уменьшена на %d", message.ReplyToMessage.From.FirstName, reputate)
-	
 
 			if err := engine.UpdateNetagiveReputation(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
@@ -112,7 +110,8 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(msg)
 
 		}
-		case "полож": {
+	case "полож":
+		{
 			_, err := engine.GetUserByID(reply_user_id)
 
 			if err != nil {
@@ -133,11 +132,8 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			
-
 			total_reputate := current_reputate + reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s увеличена на %d", message.ReplyToMessage.From.FirstName, reputate)
-	
 
 			if err := engine.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
@@ -149,8 +145,9 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(msg)
 
 		}
-		default: {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Использование: `/rep [%s] [количество]`", strings.Join(AvailableActions, ","))))	
+	default:
+		{
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Использование: `/rep [%s] [количество]`", strings.Join(AvailableActions, ","))))
 		}
 	}
 }
