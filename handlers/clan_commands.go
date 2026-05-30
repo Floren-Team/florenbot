@@ -476,7 +476,6 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-
 			code, err := engine.GetClanInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
@@ -488,9 +487,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
-			} 
-
-		
+			}
 
 			err = engine.RevokeInviteCode(clan_id)
 			if err != nil {
@@ -569,45 +566,45 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Приглашение удалено"))
 		}
 	case "add":
-    {
-        if message.Chat.Type == "private" {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan add недоступна в ЛС!"))
-            return
-        }
+		{
+			if message.Chat.Type == "private" {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan add недоступна в ЛС!"))
+				return
+			}
 
-        clan_id, err := engine.GetUserClanID(user_id)
-        if err != nil {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
-            return
-        }
+			clan_id, err := engine.GetUserClanID(user_id)
+			if err != nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				return
+			}
 
-        reply_msg := message.ReplyToMessage
-        if reply_msg == nil {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ответьте на сообщение пользователя"))
-            return
-        }
+			reply_msg := message.ReplyToMessage
+			if reply_msg == nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ответьте на сообщение пользователя"))
+				return
+			}
 
-        target_user_id := uint64(reply_msg.From.ID)
+			target_user_id := uint64(reply_msg.From.ID)
 
-        existing_clan, _ := engine.GetUserClanID(target_user_id)
-        if existing_clan != 0 {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь уже состоит в клане"))
-            return
-        }
+			existing_clan, _ := engine.GetUserClanID(target_user_id)
+			if existing_clan != 0 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь уже состоит в клане"))
+				return
+			}
 
-        err = engine.AddUserToClan(clan_id, target_user_id)
-        if err != nil {
-            if debug_type {
-                log.Printf("Ошибка при приглашении в клан: %v", err)
-            }
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-            return
-        }
-        
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Пользователь добавлен в клан"))
-		reply_user_id := int64(reply_msg.From.ID)
-		bot.Send(tgbotapi.NewMessage(reply_user_id, fmt.Sprintf("✅ Вас добавил %s", message.From.FirstName)))
-    }
+			err = engine.AddUserToClan(clan_id, target_user_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при приглашении в клан: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				return
+			}
+
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Пользователь добавлен в клан"))
+			reply_user_id := int64(reply_msg.From.ID)
+			bot.Send(tgbotapi.NewMessage(reply_user_id, fmt.Sprintf("✅ Вас добавил %s", message.From.FirstName)))
+		}
 	case "createcode":
 		{
 			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
@@ -705,9 +702,6 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			
-
-
 			// 2. Выполняем выход из клана
 			err = engine.LeaveClan(clan_id, user_id)
 			if err != nil {
@@ -719,7 +713,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			creator_id := int64(creator_id_raw)
-			
+
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Вы успешно вышли из клана"))
 			bot.Send(tgbotapi.NewMessage(creator_id, fmt.Sprintf("Пользователь %s вышел из клана", message.From.FirstName)))
 			return
