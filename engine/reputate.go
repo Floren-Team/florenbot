@@ -27,7 +27,6 @@ func UpdateNetagiveReputation(user_id uint64, reputation int) error {
 	return nil
 }
 
-
 func UpdatePositiveReputation_2(user_id uint64, reputation int) error {
 	debug_type := ParseEnvBool("DEBUG", false)
 	err := DB.QueryRow("UPDATE users SET positive_reputation = ? WHERE id = ?", reputation, user_id).Err()
@@ -43,23 +42,23 @@ func UpdatePositiveReputation_2(user_id uint64, reputation int) error {
 }
 
 func GetReputation(user_id uint64) (int, error) {
-    // 1. Получаем позитивную репутацию
-    pos, err := GetPositiveReputation(user_id)
-    if err != nil {
-        return 0, err
-    }
+	// 1. Получаем позитивную репутацию
+	pos, err := GetPositiveReputation(user_id)
+	if err != nil {
+		return 0, err
+	}
 
-    // 2. Получаем негативную репутацию
-    neg, err := GetNegativeReputation(user_id)
-    if err != nil {
-        return 0, err
-    }
+	// 2. Получаем негативную репутацию
+	neg, err := GetNegativeReputation(user_id)
+	if err != nil {
+		return 0, err
+	}
 
-    // 3. Вычисляем итоговую репутацию
-    // Логика: Positive - Negative (или сумма, в зависимости от вашей задумки)
-    total_reputation := pos - neg 
-    
-    return total_reputation, nil
+	// 3. Вычисляем итоговую репутацию
+	// Логика: Positive - Negative (или сумма, в зависимости от вашей задумки)
+	total_reputation := pos - neg
+
+	return total_reputation, nil
 }
 
 func GetNegativeReputation(user_id uint64) (int, error) {

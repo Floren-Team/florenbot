@@ -47,6 +47,12 @@ func CreateClan(name string, owner_name string, owner_id uint64) error {
 	return tx.Commit()
 }
 
+func GetClanOwnerID(clan_id uint64) (uint64, error) {
+	var owner_id uint64
+	err := DB.QueryRow("SELECT owner_id FROM clans WHERE id = ?", clan_id).Scan(&owner_id)
+	return owner_id, err
+}
+
 func AddUserToClan(clan_id uint64, user_id uint64) error {
 	_, err := DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
 	return err
