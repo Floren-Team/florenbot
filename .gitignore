@@ -21,3 +21,4 @@ tmp_binary
 test*.sh
 build_go.sh
 *.ini
+*.txt
