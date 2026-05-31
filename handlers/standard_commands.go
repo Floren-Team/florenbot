@@ -60,7 +60,8 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%d` рублей.", balance)
+	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%d` рублей.\n"+
+	"Играйте в играх /casino, /roulette, /bones. И зарабатывайте деньги.", balance)
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
