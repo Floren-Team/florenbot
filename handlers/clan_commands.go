@@ -205,7 +205,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
 				}
-				msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprint("❌ Пользователь не состоит в клане"))
+				msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не состоит в клане")
 				msg.ReplyToMessageID = message.MessageID
 				bot.Send(msg)
 				return
@@ -213,7 +213,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			// Кикнуть пользователя
 			engine.KickClanUser(clan_id, user_reply_id_raw)
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %d кикнут из клана", user_reply_id)))
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %s кикнут из клана", reply.From.FirstName)))
 
 			// Ответить пользователю
 			msg := tgbotapi.NewMessage(user_reply_id, fmt.Sprintf("✅ Вы были кикнуты из клана: %s", reason))
@@ -236,7 +236,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			info := fmt.Sprintf("✅ *Список кланов:*\n\n")
+			info := "✅ *Список кланов:*\n\n"
 			for _, clan := range clans {
 				clanDetails := fmt.Sprintf(
 					"🆔 ID: `%d`\n🏷 Название: *%s*\n👥 Участников: `%d`",
@@ -306,7 +306,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
 				}
-				msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprint("❌ Пользователь не состоит в клане"))
+				msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не состоит в клане")
 				msg.ReplyToMessageID = message.MessageID
 				bot.Send(msg)
 				return
@@ -338,7 +338,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprint("✅ Пользователь забанен"))
+			msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %s забанен", user_reply.From.FirstName))
 			msg.ReplyToMessageID = message.MessageID
 			bot.Send(msg)
 			return
