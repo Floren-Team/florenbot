@@ -2,6 +2,7 @@ package engine
 
 import (
 	"database/sql"
+	"log"
 	"florenbot/engine/structs"
 )
 
@@ -35,7 +36,9 @@ func DeleteCode(code string) error {
 
 	_, err = tx.Exec("DELETE FROM promocodes WHERE code = ?", code)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
@@ -43,7 +46,9 @@ func DeleteCode(code string) error {
 	debug("Результат обнуления промокода у пользователей: err=%v", err)
 
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 

@@ -33,3 +33,4 @@ bat
 florenbot-cert
 generatesum.sh
 summ/*
+*.bak

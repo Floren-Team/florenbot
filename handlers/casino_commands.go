@@ -1,27 +1,45 @@
 package handlers
 
 import (
+	"florenbot/engine"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
+	"os"
 	"strings"
-	"time"
-
-	"florenbot/engine"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+var StartRandomValue int
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	StartRandomValue = rand.Intn(100)
+}
+
+func GetEnvBool(key string, defaultValue bool) bool {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return boolValue
 }
 
 // HandleCasino - Слоты (/casino 100)
 func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()
 	bet, err := strconv.Atoi(strings.TrimSpace(args))
+	debug_type := GetEnvBool("DEBUG", false)
 	if err != nil || bet <= 0 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Укажите корректную сумму ставки числом. Пример: `/casino 100`"))
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Укажите корректную сумму ставки числом. Пример: `/casino 100`")
+		msg.ReplyToMessageID = message.MessageID
+		if _, err := bot.Send(msg); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
@@ -29,17 +47,30 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось проверить ваш баланс."))
+		if debug_type {
+			log.Printf("Ошибка получения баланса: %v", err)
+		}
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось проверить ваш баланс.")
+		msg.ReplyToMessageID = message.MessageID
+		if _, err := bot.Send(msg); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	if bet < 50 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет"))
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет")
+		msg.ReplyToMessageID = message.MessageID
+		if _, err := bot.Send(msg); err != nil {
+			log.Printf("Не удалось отправить сообщение: %v", err)
+		}
 		return
 	}
 
 	if bet > balance {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %d", balance)))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %d", balance))); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
@@ -63,7 +94,9 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		resultStr += fmt.Sprintf("📉 Проигрыш. Вы потеряли %d монет.", bet)
 	}
 
-	bot.Send(tgbotapi.NewMessage(message.Chat.ID, resultStr))
+	if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, resultStr)); err != nil {
+		log.Printf("Не удалось отправить сообщение: %v", err)
+	}
 }
 
 // HandleRoulette - Рулетка (/roulette 100 красное)
@@ -72,35 +105,49 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
 	// Если аргументов меньше 2 (например, ввели только ставку или вообще буквы)
 	if len(args) < 2 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/roulette [ставка] [красное/черное/зеленое]`\n\nПример: `/roulette 100 красное`"))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Укажите корректную ставку и цвет. Пример: `/roulette 100 красное`")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	bet, err := strconv.Atoi(args[0])
 	if err != nil || bet <= 0 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ставка должна быть положительным числом! Пример: `/roulette 50 черное`"))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ставка должна быть положительным числом! Пример: `/roulette 50 черное`")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	choice := strings.ToLower(args[1])
 	if choice != "красное" && choice != "черное" && choice != "зеленое" {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверно указан цвет. Выберите один из трех: `красное`, `черное` или `зеленое`"))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверно указан цвет. Выберите один из трех: `красное`, `черное` или `зеленое`")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	balance, err := engine.GetBalance(user_id, message.From.UserName)
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка авторизации игрового профиля."))
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка авторизации игрового профиля.")
+		msg.ReplyToMessageID = message.MessageID
+		if _, err := bot.Send(msg); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	if bet < 50 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет"))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Минимальная ставка - 50 монет")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
 	if bet > balance {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ Недостаточно монет. Ваш баланс: %d", balance)))
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ Недостаточно монет. Ваш баланс: %d", balance))); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 		return
 	}
 
@@ -132,5 +179,7 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, output)
 	msg.ParseMode = "Markdown"
-	bot.Send(msg)
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("Ошибка отправки уведомления: %v", err)
+	}
 }

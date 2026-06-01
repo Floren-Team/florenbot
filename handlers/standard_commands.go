@@ -92,13 +92,14 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		userProfile.Status = 0
 	}
 
-	if userProfile.Status == 3 {
+	switch userProfile.Status {
+	case 3:
 		status_text = "Отлично"
-	} else if userProfile.Status == 2 {
+	case 2:
 		status_text = "Хорошо"
-	} else if userProfile.Status == 1 {
+	case 1:
 		status_text = "Плохо"
-	} else {
+	default:
 		status_text = "Неизвестно"
 	}
 
