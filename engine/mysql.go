@@ -7,7 +7,7 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
@@ -40,7 +40,7 @@ func InitDB() {
 			log.Println("Директория 'db' не найдена, создаю её...")
 			os.Mkdir("db", 0755)
 		}
-		DB, err = sql.Open("sqlite3", "bot.db")
+		DB, err = sql.Open("sqlite", "bot.db")
 
 		_, err = DB.Exec("PRAGMA journal_mode=WAL;")
 		if err != nil {
