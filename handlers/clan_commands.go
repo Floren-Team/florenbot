@@ -213,7 +213,13 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// Кикнуть пользователя
-			if err := engine.KickClanUser(clan_id, user_reply_id_raw)
+			if err := engine.KickClanUser(clan_id, user_reply_id_raw); err != nil {
+				if debug_type {
+					log.Printf("Ошибка кикануть пользователя: %v", err)
+				}
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось кикнуть пользователя"))
+				return 
+			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %s кикнут из клана", reply.From.FirstName)))
 
 			// Ответить пользователю
