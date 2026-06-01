@@ -17,12 +17,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
-}
+
 
 func main() {
 	// 1. Загрузка переменных окружения
@@ -165,12 +160,12 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleQuit(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
-	case "clan":
-		handlers.HandleClan(bot, message)
 	case "info":
 		handlers.HandleInfo(bot, message)
 	case "rep":
 		handlers.HandleReputation(bot, message)
+	case "спасибо":
+		handlers.HandleThanks(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}

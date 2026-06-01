@@ -108,14 +108,26 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if debug_type {
 				log.Printf("Ошибка при создании кода: %v", err)
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при создании"))
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при создании")
+			msg.ReplyToMessageID = message.MessageID
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("Ошибка отправки уведомления: %v", err)
+			}
 			return
 		}
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Промокод создан"))
+		msg := tgbotapi.NewMessage(message.Chat.ID, "✅ Промокод создан")
+		msg.ReplyToMessageID = message.MessageID
+		if _, err := bot.Send(msg); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
 
 	case "delete":
 		if len(parts) < 2 {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo delete [код]"))
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /promo delete [код]")
+			msg.ReplyToMessageID = message.MessageID
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("Ошибка отправки уведомления: %v", err)
+			}
 			return
 		}
 
@@ -125,9 +137,14 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if debug_type {
 				log.Printf("Ошибка получения пользователя: %v", err)
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы")
+			msg.ReplyToMessageID = message.MessageID
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("Ошибка отправки уведомления: %v", err)
+			}
 			return
 		}
+	
 
 		code := parts[1]
 
@@ -137,7 +154,11 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
 			}
 			if err.Error() == "sql: no rows in result set" {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
+				msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден")
+				msg.ReplyToMessageID = message.MessageID
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("Ошибка отправки уведомления: %v", err)
+				}
 			} else {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при запросе к БД"))

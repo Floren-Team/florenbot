@@ -16,31 +16,41 @@ func CreateClan(name string, owner_name string, owner_id uint64) error {
 
 	res, err := tx.Exec("INSERT INTO clans (name, owner_id, owner_name) VALUES (?, ?, ?)", name, owner_id, owner_name)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	clan_id, err := res.LastInsertId()
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", clan_id, owner_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	_, err = tx.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, owner_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	_, err = tx.Exec("UPDATE clans_members SET role = 'owner' WHERE clan_id = ? AND user_id = ?", clan_id, owner_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
@@ -126,13 +136,17 @@ func BlockMemberClan(clan_id uint64, user_id uint64, reason string) error {
 
 	_, err = tx.Exec("INSERT INTO clans_blacklist (user_id, clan_id, reason) VALUES (?, ?, ?)", user_id, clan_id, reason)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	_, err = tx.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
@@ -243,14 +257,18 @@ func RevokeInviteCode(clan_id uint64) error {
 
 	_, err = tx.Exec("UPDATE clans SET invite_code = NULL WHERE id = ?", clan_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	newCode := helpers.GenerateCode()
 	_, err = tx.Exec("UPDATE clans SET invite_code = ? WHERE id = ?", newCode, clan_id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
@@ -276,13 +294,17 @@ func DeleteClan(id uint64) error {
 
 	_, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 
 	_, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
 	if err != nil {
-		tx.Rollback()
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Ошибка при откате транзакции: %v", err)
+		}
 		return err
 	}
 

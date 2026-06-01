@@ -38,7 +38,9 @@ func InitCache() {
 	} else {
 		log.Println("📁 Используется локальный кэш (папка cache)")
 		if _, err := os.Stat("cache"); os.IsNotExist(err) {
-			os.Mkdir("cache", 0755)
+			if err := os.Mkdir("cache", 0755); err != nil && !os.IsExist(err) {
+				log.Printf("Помилка створення папки: %v", err)
+			}
 		}
 	}
 }
@@ -49,7 +51,9 @@ func SetCache(key string, value string, duration time.Duration) {
 		RDB.Set(ctx, key, value, duration)
 	} else {
 		// Используем подчеркивания вместо двоеточий для имен файлов
-		os.WriteFile("cache/"+key, []byte(value), 0644)
+		if err := os.WriteFile("cache/"+key, []byte(value), 0644); err != nil {
+			log.Printf("Ошибки сохранения в кэш: %v", err)
+		}
 	}
 }
 

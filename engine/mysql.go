@@ -38,9 +38,15 @@ func InitDB() {
 
 		if _, err := os.Stat("db"); os.IsNotExist(err) {
 			log.Println("Директория 'db' не найдена, создаю её...")
-			os.Mkdir("db", 0755)
+			if err := os.Mkdir("db", 0755); err != nil && !os.IsExist(err) {
+				log.Printf("Ошибка при создании db: %v", err)
+			}
 		}
+		var err error
 		DB, err = sql.Open("sqlite", "bot.db")
+		if err != nil {
+			log.Fatalf("Ошибка при открытии SQLite: %v", err)
+		}
 
 		_, err = DB.Exec("PRAGMA journal_mode=WAL;")
 		if err != nil {
