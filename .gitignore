@@ -24,3 +24,4 @@ build_go.sh
 *.txt
 prepare.sh
 generate_changelog.sh
+manifest.json
