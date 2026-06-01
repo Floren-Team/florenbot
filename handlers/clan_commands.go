@@ -213,7 +213,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// Кикнуть пользователя
-			engine.KickClanUser(clan_id, user_reply_id_raw)
+			if err := engine.KickClanUser(clan_id, user_reply_id_raw)
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %s кикнут из клана", reply.From.FirstName)))
 
 			// Ответить пользователю
@@ -448,15 +448,18 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "revoke":
 		{
+
 			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan revoke недоступна в группах"))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan revoke недоступна в группах"))
+				return // Додаємо return, щоб бот не виконував код далі
 			}
+
 			clan_id, err := engine.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
 				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
@@ -465,53 +468,38 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
 				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
 			}
 
 			if role != "owner" && role != "admin" {
-				if debug_type {
-					log.Printf("Ошибка при удалении клана: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
 				return
 			}
 
-			code, err := engine.GetClanInviteCode(clan_id)
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка при удалении приглашения: %v", err)
-				}
-				if err.Error() == "sql: no rows in result set" {
-					bot.Send(tgbotapi.NewMessage(message.Chat.ID, "ℹ️ Активные коды приглашения отсутствуют"))
-					return
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-				return
-			}
-
+			// Спочатку видаляємо код
 			err = engine.RevokeInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
 				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
 
-			code, err = engine.GetClanInviteCode(clan_id)
+			// Після видалення отримуємо новий код (або створюємо, якщо логіка передбачає)
+			newCode, err := engine.GetClanInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
-					log.Printf("Ошибка при удалении приглашения: %v", err)
+					log.Printf("Ошибка при получении нового кода: %v", err)
 				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
 
-			msgText := fmt.Sprintf("✅ Сообщите его друзьям: /clan invite %s", code)
-
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, msgText))
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Старый код приглашения удален"))
+			// Відправляємо повідомлення
+			_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Старый код приглашения удален"))
+			_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Новый код: /clan invite %s", newCode)))
 
 		}
 	case "delcode":
