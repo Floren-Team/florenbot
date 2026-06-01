@@ -144,7 +144,6 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 			return
 		}
-	
 
 		code := parts[1]
 
