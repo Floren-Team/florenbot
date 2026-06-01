@@ -44,12 +44,27 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	switch action {
 	case "create":
+
+		user_id := uint64(message.From.ID)
+		balance, err := engine.GetBalance(user_id, message.From.UserName)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка получения баланса: %v", err)
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+			return
+		}
+
+		if balance < 2000 {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 2000 рублей"))
+			return
+		}
+
 		if len(parts) < 3 {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /promo create [код] [сумма]"))
 			return
 		}
 
-		user_id := uint64(message.From.ID)
 		_, err_2 := engine.GetUserByID(user_id)
 		if err_2 != nil {
 			if debug_type {
