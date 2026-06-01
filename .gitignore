@@ -31,3 +31,4 @@ winres
 bat
 *.syso
 florenbot-cert
+generatesum.sh
