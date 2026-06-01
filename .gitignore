@@ -27,3 +27,5 @@ generate_changelog.sh
 manifest.json
 florenbot_windows_amd64.syso
 *.exe
+winres
+bat
