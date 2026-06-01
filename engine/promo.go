@@ -2,8 +2,8 @@ package engine
 
 import (
 	"database/sql"
-	"log"
 	"florenbot/engine/structs"
+	"log"
 )
 
 func ActivateCode(id uint64, code string) error {

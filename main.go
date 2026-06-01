@@ -17,8 +17,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-
-
 func main() {
 	// 1. Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {

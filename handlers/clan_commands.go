@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-
-
 // HandleClan обрабатывает команду /clan
 func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()
