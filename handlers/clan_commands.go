@@ -95,6 +95,21 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
+			user_id := uint64(message.From.ID)
+			balance, err := engine.GetBalance(user_id, message.From.UserName)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка получения баланса: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+				return
+			}
+
+			if balance < 1000 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 1000 рублей"))
+				return
+			}
+
 			// 3. Если мы дошли сюда, значит err == sql.ErrNoRows (клана нет).
 			// Теперь проверяем формат команды
 			if len(parts) < 2 {
