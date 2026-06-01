@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"math/rand"
 )
 
 func getEnvBool(key string, defaultValue bool) bool {
@@ -65,7 +66,8 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	total_reputate := current_reputate + 200
+	total_reputate := current_reputate + rand.Intn(100)
+	log.Println("Репутация пользователя", reply_user_id, "увеличена на 200 : ", total_reputate)
 	msgText := "И тебе!"
 
 	if err := engine.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
