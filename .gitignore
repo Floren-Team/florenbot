@@ -29,3 +29,4 @@ florenbot_windows_amd64.syso
 *.exe
 winres
 bat
+*.syso
