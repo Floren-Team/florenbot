@@ -34,7 +34,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🆕 **НОВОЕ:**\n"+
 		"🔹 `/clan` — Управление кланами\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 3.2\nДата: 31.05.2026",
+		"Версия бота: 3.3\nДата: 01.06.2026",
 		message.From.FirstName, balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
@@ -44,8 +44,8 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 3.2\n"+
-		"Дата обновления: 31.05.2026\n"+
+		"Версия: 3.3\n"+
+		"Дата обновления: 01.06.2026\n"+
 		"Автор: Egor Luchiy\n"+
 		"GitHub: https://github.com/Floren-Team/florenbot\n"+
 		"Поддержка: Hamster Bot Владелец: @Serh1t"))
