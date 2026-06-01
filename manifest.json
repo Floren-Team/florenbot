@@ -1,0 +1,18 @@
+{
+  "VersionInfo": {
+    "FixedFileInfo": {
+      "FileVersion": { "Major": 1, "Minor": 0, "Patch": 0, "Build": 0 },
+      "ProductVersion": { "Major": 1, "Minor": 0, "Patch": 0, "Build": 0 }
+    },
+    "StringFileInfo": {
+      "CompanyName": "FlorenTeam",
+      "FileDescription": "FlorenBot Telegram",
+      "FileVersion": "3.4",
+      "InternalName": "florenbot",
+      "LegalCopyright": "Copyright 2026",
+      "OriginalFilename": "florenbot_x64.exe",
+      "ProductName": "FlorenBot",
+      "ProductVersion": 3.4"
+    }
+  }
+}
