@@ -32,3 +32,4 @@ bat
 *.syso
 florenbot-cert
 generatesum.sh
+summ/*
