@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -18,16 +17,13 @@ import (
 )
 
 func main() {
-	// 1. Загрузка переменных окружения
 	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ Файл .env не найден, используются системные переменные")
+		log.Println("⚠️ Файл .env не найден")
 	}
 
-	// 2. Инициализация инфраструктуры
 	engine.InitDB()
 	engine.InitCache()
 
-	// 3. Настройка бота
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		log.Fatal("❌ Переменная BOT_TOKEN не установлена")
@@ -41,130 +37,118 @@ func main() {
 	bot.Debug = false
 	log.Printf("🤖 Авторизовано как @%s", bot.Self.UserName)
 
-	// 4. Канал для перехвата сигналов завершения (Ctrl+C)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// 5. Настройка обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
-
 	startTime := time.Now()
 
-	// 6. Запуск обработки событий в горутине
 	go func() {
 		for update := range updates {
 			if update.Message == nil {
 				continue
 			}
 
-			// Защита от "старых" сообщений
 			if update.Message.Time().Before(startTime) {
 				continue
 			}
 
-			// Обработка новых участников
 			if update.Message.NewChatMembers != nil {
 				handleNewMembers(bot, update)
 				continue
 			}
 
-			// Обработка команд: теперь проверяем оба префикса
-			text := update.Message.Text
-			if strings.HasPrefix(text, "/") || strings.HasPrefix(text, "!") {
-				handleCommands(bot, update.Message)
-			}
+			// ОНОВЛЕНА ЛОГІКА:
+			// Обробляємо всі повідомлення, що містять текст
+			handleMessage(bot, update.Message)
 		}
 	}()
 
-	// Блокируемся до получения сигнала выхода
 	<-quit
-	log.Println("🛑 Получен сигнал завершения. Останавливаю бота...")
-
-	// Безопасное закрытие базы данных
+	log.Println("🛑 Останавливаю бота...")
 	engine.CloseDB()
 	engine.ShutdownCache()
-	log.Println("✅ Бот успешно выключен.")
 }
 
-func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
-	for _, newUser := range update.Message.NewChatMembers {
-		isBanned, err := engine.IsUserBanned(newUser.ID)
-		if err != nil {
-			log.Printf("⚠️ Ошибка проверки ЧС: %v", err)
-			continue
-		}
+func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	text := message.Text
+	lowerText := strings.ToLower(text)
 
-		if isBanned {
-			kickConfig := tgbotapi.BanChatMemberConfig{
-				ChatMemberConfig: tgbotapi.ChatMemberConfig{
-					ChatID: update.Message.Chat.ID,
-					UserID: newUser.ID,
-				},
-			}
-			bot.Request(kickConfig)
-			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID,
-				fmt.Sprintf("🚫 Пользователь @%s в черном списке. Исключен.", newUser.UserName)))
-		}
+	// 1. Перевірка на "спасибо" або "дякую" (без префіксів)
+	if strings.Contains(lowerText, "спасибо") || strings.Contains(lowerText, "дякую") {
+		log.Printf("Зафиксирована благодарность от @%s", message.From.UserName)
+		handlers.HandleThanks(bot, message)
+		return
+	}
+
+	// 2. Перевірка на команди з префіксами
+	if strings.HasPrefix(text, "/") || strings.HasPrefix(text, "!") {
+		handleCommands(bot, message)
 	}
 }
 
 func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	text := message.Text
-	log.Printf("Сообщение от @%s: %s", message.From.UserName, text)
-
-	// Проверяем, начинается ли сообщение с допустимого префикса
-	// if !strings.HasPrefix(text, "/") && !strings.HasPrefix(text, "!") {
-	// 	log.Print("Неизвестный префикс команды")
-	// 	return
-	// }
-
-	allowedPrefixes := []string{"/", "!"}
-
-	foundPrefix := ""
-	for _, p := range allowedPrefixes {
-		if strings.HasPrefix(text, p) {
-			foundPrefix = p
-			break
-		}
-	}
-
-	if foundPrefix == "" {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не могу обработать команду: используйте префиксы / или !"))
+	parts := strings.Fields(message.Text)
+	if len(parts) == 0 {
 		return
 	}
 
-	// Разбиваем строку на части по пробелам
-	parts := strings.Fields(text)
-
-	// Получаем саму команду, убираем префикс (1 символ) и приводим к нижнему регистру
 	command := strings.ToLower(parts[0][1:])
 
 	switch command {
 	case "start":
+
 		handlers.HandleStart(bot, message)
+
 	case "balance":
+
 		handlers.HandleBalance(bot, message)
+
 	case "profile":
+
 		handlers.HandleProfile(bot, message)
+
 	case "casino":
+
 		handlers.HandleCasino(bot, message)
+
 	case "roulette":
+
 		handlers.HandleRoulette(bot, message)
+
 	case "bones":
+
 		bones.HandleBones(bot, message)
+
 	case "q":
+
 		handlers.HandleQuit(bot, message)
+
 	case "promo":
+
 		handlers.HandlePromo(bot, message)
+
 	case "info":
+
 		handlers.HandleInfo(bot, message)
+
 	case "rep":
+
 		handlers.HandleReputation(bot, message)
-	case "спасибо":
+	case "спасибо": // залишаємо для виклику через /спасибо
 		handlers.HandleThanks(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
+	}
+}
+
+func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	for _, newUser := range update.Message.NewChatMembers {
+		isBanned, _ := engine.IsUserBanned(newUser.ID)
+		if isBanned {
+			bot.Request(tgbotapi.BanChatMemberConfig{ChatMemberConfig: tgbotapi.ChatMemberConfig{ChatID: update.Message.Chat.ID, UserID: newUser.ID}})
+		}
 	}
 }

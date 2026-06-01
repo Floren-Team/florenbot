@@ -84,20 +84,20 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if res1 == res2 && res2 == res3 {
 		winAmount := bet * 5
-		if err := engine.ChangeBalance(user_id, winAmount) ; err != nil {
+		if err := engine.ChangeBalance(user_id, winAmount); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}
 		resultStr += fmt.Sprintf("🎉 ДЖЕКПОТ! Вы выиграли %d монет!", winAmount)
 	} else if res1 == res2 || res2 == res3 || res1 == res3 {
 		winAmount := bet * 1 // Возврат ставки + выигрыш x2 чистыми
-		if err := engine.ChangeBalance(user_id, winAmount) ; err != nil {
+		if err := engine.ChangeBalance(user_id, winAmount); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}
 		resultStr += fmt.Sprintf("💵 Победа! Вы выиграли %d монет!", bet*2)
 	} else {
-		if err := engine.ChangeBalance(user_id, -bet) ; err != nil {
+		if err := engine.ChangeBalance(user_id, -bet); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}
@@ -180,13 +180,13 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			multiplier = 35
 		}
 		winAmount := bet * multiplier
-		if err := engine.ChangeBalance(user_id, winAmount) ; err != nil {
+		if err := engine.ChangeBalance(user_id, winAmount); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}
 		output += fmt.Sprintf("🎉 Вы угадали! Выигрыш: +%d монет.", winAmount+bet)
 	} else {
-		if err := engine.ChangeBalance(user_id, -bet) ; err != nil {
+		if err := engine.ChangeBalance(user_id, -bet); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}

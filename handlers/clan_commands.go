@@ -218,7 +218,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 					log.Printf("Ошибка кикануть пользователя: %v", err)
 				}
 				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось кикнуть пользователя"))
-				return 
+				return
 			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь %s кикнут из клана", reply.From.FirstName)))
 
