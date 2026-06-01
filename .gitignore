@@ -26,4 +26,4 @@ prepare.sh
 generate_changelog.sh
 manifest.json
 florenbot_windows_amd64.syso
-florenbot_x64.exe
+*.exe
