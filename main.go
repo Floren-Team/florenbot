@@ -60,8 +60,6 @@ func main() {
 				continue
 			}
 
-			// ОНОВЛЕНА ЛОГІКА:
-			// Обробляємо всі повідомлення, що містять текст
 			handleMessage(bot, update.Message)
 		}
 	}()
@@ -76,14 +74,12 @@ func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	text := message.Text
 	lowerText := strings.ToLower(text)
 
-	// 1. Перевірка на "спасибо" або "дякую" (без префіксів)
 	if strings.Contains(lowerText, "спасибо") || strings.Contains(lowerText, "дякую") {
 		log.Printf("Зафиксирована благодарность от @%s", message.From.UserName)
 		handlers.HandleThanks(bot, message)
 		return
 	}
 
-	// 2. Перевірка на команди з префіксами
 	if strings.HasPrefix(text, "/") || strings.HasPrefix(text, "!") {
 		handleCommands(bot, message)
 	}
@@ -137,7 +133,9 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "rep":
 
 		handlers.HandleReputation(bot, message)
-	case "спасибо": // залишаємо для виклику через /спасибо
+	case "report":
+		handlers.HandleReport(bot, message)
+	case "спасибо":
 		handlers.HandleThanks(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))

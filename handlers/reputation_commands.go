@@ -5,23 +5,10 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
-	"os"
+	"math/rand"
 	"strconv"
 	"strings"
-	"math/rand"
 )
-
-func getEnvBool(key string, defaultValue bool) bool {
-	value, exists := os.LookupEnv(key)
-	if !exists {
-		return defaultValue
-	}
-	boolValue, err := strconv.ParseBool(value)
-	if err != nil {
-		return defaultValue
-	}
-	return boolValue
-}
 
 func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
@@ -36,7 +23,7 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	reply_user_id := uint64(user_reply.From.ID)
-	debug_type := getEnvBool("DEBUG", false)
+	debug_type := GetEnvBool("DEBUG", false)
 
 	_, err := engine.GetUserByID(reply_user_id)
 

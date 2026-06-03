@@ -90,7 +90,7 @@ func GetUserClanRole(userID uint64) (string, error) {
 	return role, err
 }
 
-func GetClans() ([]model.Clans, error) {
+func GetClans() ([]structs.Clans, error) {
 	query := `
     SELECT 
         c.id, 
@@ -108,9 +108,9 @@ func GetClans() ([]model.Clans, error) {
 	}
 	defer rows.Close()
 
-	var clans []model.Clans
+	var clans []structs.Clans
 	for rows.Next() {
-		var c model.Clans
+		var c structs.Clans
 		var inviteCode sql.NullString
 
 		if err := rows.Scan(&c.Id, &c.Name, &c.OwnerId, &inviteCode, &c.MemberCount); err != nil {
@@ -166,8 +166,8 @@ func GetClanMemberCount(clanID int64) (int, error) {
 	return count, nil
 }
 
-func GetClanByID(id uint64) (*model.Clans, error) {
-	clan := &model.Clans{}
+func GetClanByID(id uint64) (*structs.Clans, error) {
+	clan := &structs.Clans{}
 	query := "SELECT id, name, owner_id FROM clans WHERE id = ?"
 	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
 	return clan, err
@@ -179,8 +179,8 @@ func GetClanByOwnerID(owner_id uint64) (uint64, error) {
 	return id, err
 }
 
-func GetClan(id uint64) (*model.Clans, error) {
-	clan := &model.Clans{}
+func GetClan(id uint64) (*structs.Clans, error) {
+	clan := &structs.Clans{}
 	query := "SELECT id, name, owner_name FROM clans WHERE id = ?"
 	err := DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerName)
 	return clan, err

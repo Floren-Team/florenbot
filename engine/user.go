@@ -5,8 +5,8 @@ import (
 	"florenbot/engine/structs"
 )
 
-func GetUserByID(tg_id uint64) (model.User, error) {
-	var user model.User
+func GetUserByID(tg_id uint64) (structs.User, error) {
+	var user structs.User
 	query := `SELECT id, username,  balance, promocode, clan_id, negative_reputation, positive_reputation 
               FROM users WHERE id = ?`
 
@@ -21,9 +21,24 @@ func GetUserByID(tg_id uint64) (model.User, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return model.User{}, nil
+			return structs.User{}, nil
 		}
-		return model.User{}, err
+		return structs.User{}, err
 	}
 	return user, nil
+}
+
+func CreateUser(
+	user_id uint64,
+	username string,
+	firstName string,
+) (structs.User, error) {
+	query := "INSERT INTO users (id, username, first_name) VALUES (?, ?, ?)"
+
+	_, err := DB.Exec(query, user_id, username, firstName)
+	if err != nil {
+		return structs.User{}, err
+	}
+
+	return GetUserByID(user_id)
 }
