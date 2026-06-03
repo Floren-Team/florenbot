@@ -2,22 +2,21 @@
 
 
 1. Скачайте архив Go
-
-2. ``bash
- wget https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
- ``
+ ```bash
+    wget https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
+   ```
 
 2. Распакуйте архив в /usr/local/bin:
-``bash
+```bash
    sudo rm -rf /usr/local/go (Если была инсталяция ранее)
    sudo tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz 
-``
+```
 3. Настройте PATH:
 
-``bash
+```bash
   echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
   source ~/.bashrc
-``
+```
 
 Проверьте что у вас есть MariaDB (MySQL), Redis и настройте .env
 
@@ -41,7 +40,22 @@
 go build
 ```
 
+## Использование Docker 
 
+Важно! На компьютере должен быть установлен Docker если нет установите его
+
+Для сборки проекта просто пропишите команду
+
+```bash
+ ./build.sh
+```
+
+или
+
+```bash
+  bash build.sh
+```
+Все готово!
 
 
 
