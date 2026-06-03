@@ -1,4 +1,4 @@
-package model
+package structs
 
 type Clans struct {
 	Id          int64

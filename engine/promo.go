@@ -55,7 +55,7 @@ func DeleteCode(code string) error {
 	return tx.Commit()
 }
 
-func GetPromocodesUser(id uint64) ([]model.UserPromo, error) {
+func GetPromocodesUser(id uint64) ([]structs.UserPromo, error) {
 	code, err := GetUserCode(id)
 	if err != nil || code == "" {
 		return nil, err
@@ -64,7 +64,7 @@ func GetPromocodesUser(id uint64) ([]model.UserPromo, error) {
 	amount, _ := GetCode(code)
 
 	// Возвращаем список из одного элемента
-	return []model.UserPromo{{Code: code, Amount: amount}}, nil
+	return []structs.UserPromo{{Code: code, Amount: amount}}, nil
 }
 
 func GetCode(code string) (int, error) {

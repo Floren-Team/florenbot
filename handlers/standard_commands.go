@@ -12,16 +12,52 @@ import (
 // HandleStart обрабатывает команду /start
 func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
-	balance, err := engine.GetBalance(user_id, message.From.UserName)
+	userProfile, err := engine.GetUserByID(user_id)
+	debug_type := GetEnvBool("DEBUG", false)
+	if debug_type {
+		log.Printf("Пользователь %s начал игровой клуб", message.From.FirstName)
+		log.Printf("Результат: %v, %v", userProfile, err)
+	}
 	if err != nil {
-		log.Printf("Ошибка при старте: %v", err)
+		if debug_type {
+			log.Printf("Ошибка при старте: %v", err)
+		}
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
 		return
+	}
+
+	if userProfile.Id == 0 {
+		if debug_type {
+			log.Printf("Пользователь %s создается...", message.From.FirstName)
+		}
+		userProfile, err = engine.CreateUser(
+			user_id,
+			message.From.UserName,
+			message.From.FirstName,
+		)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при создании пользователя: %v", err)
+				return
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать пользователя"))
+			return
+		}
+
+		if debug_type {
+			log.Printf("Пользователь %s создан", message.From.FirstName)
+			log.Printf("Результат: %v", userProfile)
+		}
+	} else {
+		if debug_type {
+			log.Printf("Пользователь %s уже существует", message.From.FirstName)
+		}
 	}
 
 	// Красивое, структурированное приветствие с использованием эмодзи-разделителей
 	text := fmt.Sprintf("👋 **Приветствуем вас, %s!**\n\n"+
 		"Добро пожаловать в игровой клуб! 🎰\n"+
-		"Текущий баланс: **%d рублей** 💰\n\n"+
+		"Текущий баланс: **`%.2f` рублей** 💰\n\n"+
 		"📋 **Доступные команды:**\n"+
 		"🔹 `/balance` — Узнать баланс\n"+
 		"🔹 `/profile` — Просмотреть профиль\n"+
@@ -35,7 +71,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/clan` — Управление кланами\n\n"+
 		"Желаем удачи! 🍀\n\n"+
 		"Версия бота: 3.8\nДата: 01.06.2026",
-		message.From.FirstName, balance)
+		message.From.FirstName, userProfile.Balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
@@ -54,14 +90,14 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
-	balance, err := engine.GetBalance(user_id, message.From.UserName)
+	userProfile, err := engine.GetUserByID(user_id)
 	if err != nil {
 		log.Printf("Ошибка получения баланса: %v", err)
 		return
 	}
 
-	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%d` рублей.\n"+
-		"Играйте в играх /casino, /roulette, /bones. И зарабатывайте деньги.", balance)
+	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%.2f` рублей.\n"+
+		"Играйте в играх /casino, /roulette, /bones. И зарабатывайте деньги.", userProfile.Balance)
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
@@ -105,6 +141,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
 		"└── **Баланс:** `%.2f` рублей 🪙\n"+
+		"└── **Floren Coin:** `%.2f` монет 🪙\n"+
 		"└── **Негативных репутации:** `%d`\n"+
 		"└── **Позитивных репутации:** `%d`\n\n"+
 		"└── **Всего репутации:** `%d`\n"+
@@ -113,6 +150,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
 		userProfile.Balance,
+		userProfile.FlorenCoin,
 		userProfile.NegativeReputation,
 		userProfile.PositiveReputation,
 		total_reputation,

@@ -68,7 +68,6 @@ func InitDB() {
 	var queries []string
 	if dbMode == "mysql" {
 		queries = []string{
-			// 1. Спочатку створюємо незалежні таблиці
 			`CREATE TABLE IF NOT EXISTS clans (
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				name VARCHAR(255) NOT NULL, 
@@ -88,14 +87,24 @@ func InitDB() {
 			`CREATE TABLE IF NOT EXISTS users (
 				id BIGINT PRIMARY KEY, 
 				username VARCHAR(255), 
-				balance FLOAT DEFAULT 1000, 
+				balance FLOAT DEFAULT 1000,
+				first_name VARCHAR(32), 
 				promocode VARCHAR(32), 
+				floren_coin FLOAT DEFAULT 300000,
 				negative_reputation INT DEFAULT 0, 
 				positive_reputation INT DEFAULT 0, 
 				clan_id INT DEFAULT NULL, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL,
-				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE CASCADE
+			) ENGINE=InnoDB;`,
+
+			`CREATE TABLE IF NOT EXISTS reports (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				user_id BIGINT NULL REFERENCES users(id) ON DELETE CASCADE,
+				text TEXT NOT NULL,
+				active BOOLEAN DEFAULT TRUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS blacklists (
@@ -148,13 +157,24 @@ func InitDB() {
 				username VARCHAR(255), 
 				balance INT DEFAULT 1000, 
 				promocode VARCHAR(32), 
+				floren_coin FLOAT DEFAULT 300000,
+				first_name VARCHAR(32),
 				clan_id INTEGER, 
 				negative_reputation INT DEFAULT 0, 
 				positive_reputation INT DEFAULT 0, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE SET NULL,
-				FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE SET NULL
+				FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE CASCADE
 			);`,
+
+			`CREATE TABLE IF NOT EXISTS reports (
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				user_id BIGINT NULL REFERENCES users(id) ON DELETE CASCADE,
+				text TEXT NOT NULL,
+				active BOOLEAN DEFAULT TRUE,
+
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS blacklists (
 				id INTEGER PRIMARY KEY AUTOINCREMENT, 
