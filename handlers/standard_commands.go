@@ -71,7 +71,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Новые команды:\n\n"+
 		"🔹 `/report` — Сделать отчет\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 4.0\nДата: 03.06.2026",
+		"Версия бота: 4.1\nДата: 03.06.2026",
 		message.From.FirstName, userProfile.Balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
@@ -81,7 +81,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 4.0\n"+
+		"Версия: 4.1\n"+
 		"Дата обновления: 03.06.2026\n"+
 		"Автор: Egor Luchiy\n"+
 		"GitHub: https://github.com/Floren-Team/florenbot"))
