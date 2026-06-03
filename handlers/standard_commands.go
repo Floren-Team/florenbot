@@ -84,8 +84,9 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Версия: 4.0\n"+
 		"Дата обновления: 03.06.2026\n"+
 		"Автор: Egor Luchiy\n"+
-		"GitHub: https://github.com/Floren-Team/florenbot")
-		
+		"GitHub: https://github.com/Floren-Team/florenbot"))
+}
+
 
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
