@@ -67,8 +67,9 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/promo active [code]` — Активировать код\n"+
 		"🔹 `/promo create [code] [amount]` — Создать код\n"+
 		"🔹 `/promo delete [code]` — Удалить код\n\n"+
-		"🆕 **НОВОЕ:**\n"+
 		"🔹 `/clan` — Управление кланами\n\n"+
+		"Новые команды:\n\n"+
+		"🔹 `/report` — Сделать отчет\n\n"+
 		"Желаем удачи! 🍀\n\n"+
 		"Версия бота: 4.0\nДата: 03.06.2026",
 		message.From.FirstName, userProfile.Balance)
