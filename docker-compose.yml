@@ -3,6 +3,8 @@ services:
     build: .
     container_name: florenbot
     restart: always
+    env_file:
+      - .env.docker
     depends_on:
       mariadb:
         condition: service_healthy
