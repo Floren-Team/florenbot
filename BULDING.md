@@ -46,6 +46,32 @@ go build
 
 Для сборки проекта просто пропишите команду
 
+
+Но очень важно скопировать файл ***REMOVED*** как ***REMOVED***
+
+1. Скопируй файл
+   
+```bash
+  cp ***REMOVED*** .env.docker
+ ```
+
+2. Заполни его
+     ```env
+    REDIS_ADDR=redis:6379
+    REDIS_PASSWORD=
+    REDIS_DB=0
+    
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_USER=
+    DB_PASSWORD=
+    DB_NAME=
+    DB_ROOT_PASSWORD=
+   REDIS_ADDR=localhost:6379
+   ```
+     
+После заполнения файла запустите команду 
+
 ```bash
  ./build.sh
 ```
