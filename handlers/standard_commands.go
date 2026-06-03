@@ -70,7 +70,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🆕 **НОВОЕ:**\n"+
 		"🔹 `/clan` — Управление кланами\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 3.8\nДата: 01.06.2026",
+		"Версия бота: 4.0\nДата: 03.06.2026",
 		message.From.FirstName, userProfile.Balance)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
@@ -80,11 +80,13 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 3.8\n"+
-		"Дата обновления: 01.06.2026\n"+
+		"Версия: 4.0\n"+
+		"Дата обновления: 03.06.2026\n"+
 		"Автор: Egor Luchiy\n"+
-		"GitHub: https://github.com/Floren-Team/florenbot\n"+
-		"Поддержка: Hamster Bot Владелец: @Serh1t"))
+		"GitHub: https://github.com/Floren-Team/florenbot\n\n"+
+		"Поддержка:\n"+
+		"Hamster Bot\n"+ 
+		"Владелец: @serh1t спасибо ему"))
 }
 
 // HandleBalance обрабатывает команду /balance
