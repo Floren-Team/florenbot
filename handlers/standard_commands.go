@@ -57,7 +57,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// Красивое, структурированное приветствие с использованием эмодзи-разделителей
 	text := fmt.Sprintf("👋 **Приветствуем вас, %s!**\n\n"+
 		"Добро пожаловать в игровой клуб! 🎰\n"+
-		"Текущий баланс: **`%.2f` рублей** 💰\n\n"+
+		"Текущий баланс: **`%.2f` $** 💰\n\n"+
 		"📋 **Доступные команды:**\n"+
 		"🔹 `/balance` — Узнать баланс\n"+
 		"🔹 `/profile` — Просмотреть профиль\n"+
@@ -97,7 +97,7 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%.2f` рублей.\n"+
+	text := fmt.Sprintf("💰 **Ваш текущий баланс:** `%.2f` $.\n"+
 		"Играйте в играх /casino, /roulette, /bones. И зарабатывайте деньги.", userProfile.Balance)
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
