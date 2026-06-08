@@ -10,30 +10,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-#    environment:
- #     BOT_TOKEN: ${BOT_TOKEN}
-  #    DB_HOST: mariadb
-   #   DB_PORT: 3306
-   #   DB_NAME: ${DB_NAME}
-   #   DB_USER: ${DB_USER}
-   #   DB_PASSWORD: ${DB_PASSWORD}
-   #   CACHE_ENGINE: redis
-   #   REDIS_DB: 0
-   #   DEBUG: false
-   #   DB_ENGINE: mysql
-   #   REDIS_PASSWORD: ${REDIS_PASSWORD}
-    #  REDIS_ADDR: redis:6379
-    #  GODEBUG: netdns=go
-   #   FORCE_IPV4: "true"
     environment:
-      - DB_HOST=mariadb
-      - DB_PORT=3306
-      - CACHE_ENGINE=redis
-      - DEBUG=false
-      - DB_ENGINE=mysql
-      - REDIS_ADDR=redis:6379
-      - GODEBUG=netdns=go
-      - FORCE_IPV4=true
+      BOT_TOKEN: ${BOT_TOKEN}
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CACHE_ENGINE: redis
+      REDIS_DB: 0
+      DEBUG: false
+      DB_ENGINE: mysql
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_ADDR: redis:6379
+      GODEBUG: netdns=go
+      FORCE_IPV4: "true"
     deploy:
       resources:
         limits:
