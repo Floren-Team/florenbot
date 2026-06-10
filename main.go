@@ -11,7 +11,7 @@ import (
 	"florenbot/bones"
 	"florenbot/engine"
 	"florenbot/handlers"
-
+	license "florenbot/license"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 )
@@ -21,8 +21,17 @@ func main() {
 		log.Println("⚠️ Файл .env не найден")
 	}
 
+	if !license.LoadLicense() {
+		os.Exit(1)
+	}
+
+	if !license.CheckLicense() {
+		os.Exit(1)
+	}
+
 	engine.InitDB()
 	engine.InitCache()
+
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
