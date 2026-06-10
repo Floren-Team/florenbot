@@ -18,6 +18,16 @@ func CreateCode(code string, amount int) error {
 	return err
 }
 
+func GetPromocodesMemberCount() {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) AS count FROM users WHERE promocodes IS NOT NULL").Scan(&count)
+	if err != nil {
+		log.Printf("Ошибка при получении количества промокодов: %v", err)
+		return
+	}
+	debug("Количество промокодов: %d", count)
+}
+
 func GetUserCode(userID uint64) (string, error) {
 	var code sql.NullString
 	err := DB.QueryRow("SELECT promocode FROM users WHERE id = ?", userID).Scan(&code)

@@ -33,8 +33,10 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()
 	parts := strings.Fields(args)
 
+	var availableActions = []string{"active", "create", "delete", "list", "stats"}
+
 	if len(parts) < 1 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: active, create, delete, list"))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: " + strings.Join(availableActions[:], ", ")))
 		return
 	}
 
@@ -277,8 +279,38 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		msg := tgbotapi.NewMessage(message.Chat.ID, sb.String())
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
+	// case "stats": {
+	// 	user_id := uint64(message.From.ID)
+
+	// 	promocodes, err := engine.GetPromocodesUser(user_id)
+	// 	if err != nil {
+	// 		if debug_type {
+	// 			log.Printf("Ошибка при получении промокодов: %v", err)
+	// 		}
+	// 		log.Printf("Ошибка при получении промокодов: %v", err)
+	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении промокодов"))
+	// 		return
+	// 	}
+
+	// 	if len(promocodes) == 0 {
+	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет активных промокодов"))
+	// 		return
+	// 	}
+
+	// 	count, err := engine.GetPromocodesMemberCount()
+	// 	if err != nil {
+	// 		if debug_type {
+	// 			log.Printf("Ошибка при получении количества участников промокодов: %v", err)
+	// 		}
+	// 		log.Printf("Ошибка при получении количества участников промокодов: %v", err)
+	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении количества участников промокодов"))
+	// 		return
+	// 	}
+
+
+	// }
 	default:
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестное действие\nИспользуйте: /promo [create|delete|active|list]"))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестное действие\nВсе действия: " + strings.Join(availableActions[:], ", ")))
 	}
 
 }
