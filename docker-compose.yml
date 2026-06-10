@@ -30,6 +30,16 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+    networks:
+      - florenbot
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    command: php -S 0.0.0.0:8080 -t /var/www/html
+    networks:
+      - florenbot
 
   mariadb:
     image: mariadb:10.11
@@ -48,7 +58,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+    networks:
+      - florenbot
   redis:
     image: redis:alpine
     healthcheck:
@@ -62,7 +73,12 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - florenbot
 
 volumes:
   db_data:
   redis_data:
+
+networks:
+  florenbot:
