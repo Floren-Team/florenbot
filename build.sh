@@ -43,7 +43,7 @@ fi
 sleep 2
 echo -e "${GREEN}Запуск сборки проекта..."
 sleep 3
-$COMPOSE_CMD up -d --build
+$COMPOSE_CMD --env-file .env.docker up -d --build
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Сборка успешно завершена!${NC}"
