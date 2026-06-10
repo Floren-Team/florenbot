@@ -7,6 +7,8 @@ import (
 	"florenbot/engine"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	consts "florenbot/consts"
 )
 
 // HandleStart обрабатывает команду /start
@@ -71,8 +73,8 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Новые команды:\n\n"+
 		"🔹 `/report` — Сделать отчет\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота: 4.1\nДата: 03.06.2026",
-		message.From.FirstName, userProfile.Balance)
+		"Версия бота:  %s\nДата: 03.06.2026",
+		message.From.FirstName, userProfile.Balance, consts.EAP_VERSION)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
