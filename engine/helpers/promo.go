@@ -7,9 +7,6 @@ import (
 	"log"
 )
 
-type Engine struct {
-    db *sql.DB
-}
 
 func ActivateCode(id uint64, code string) error {
 	engine.Debug("Активация кода: %s для пользователя %d", code, id)

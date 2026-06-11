@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func getEnvBool(key string, defaultValue bool) bool {
+func GetEnvBool(key string, defaultValue bool) bool {
 	value, exists := os.LookupEnv(key)
 	if !exists {
 		return defaultValue
