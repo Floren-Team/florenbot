@@ -40,7 +40,7 @@ func CheckLicense() bool {
 func GetExpireLicense() (*bool, error) {
 	if _, err := os.Stat(consts.LICENSE_FILE); os.IsNotExist(err) {
 		log.Println("[LicenseManager] Лицензия не найдена")
-		return nil, nil // Файл відсутній
+		return nil, nil
 	}
 
 	file, err := os.Open(consts.LICENSE_FILE)
@@ -69,5 +69,11 @@ func GetExpireLicense() (*bool, error) {
 			return &isActive, nil
 		}
 	}
-	return nil, fmt.Errorf("поле ExpirationDate не найдено в лицензии")
+
+	// Обязательная проверка ошибок сканера после завершения цикла
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Ошибка при чтении файла лицензии: %w", err)
+	}
+
+	return nil, fmt.Errorf("поле ExpirationDate не найдено в лицензии")
 }

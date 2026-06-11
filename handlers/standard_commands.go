@@ -82,11 +82,11 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 }
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 4.1\n"+
-		"Дата обновления: 03.06.2026\n"+
+	bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Информация о боте\n\n"+
+		"Версия: %s\n"+
+		"Дата обновления: 11.06.2026\n"+
 		"Автор: Egor Luchiy\n"+
-		"GitHub: https://github.com/Floren-Team/florenbot"))
+		"GitHub: https://github.com/Floren-Team/florenbot", consts.EAP_VERSION)))
 }
 
 // HandleBalance обрабатывает команду /balance
