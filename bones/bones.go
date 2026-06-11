@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"time"
 
 	"florenbot/engine"
@@ -15,7 +14,8 @@ import (
 // HandleBones обрабатывает команду /bones [ставка]
 func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()
-	bet, err := strconv.Atoi(strings.TrimSpace(args))
+	bet, err := strconv.ParseFloat(args, 64)
+	bet = float64(bet)
 	msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Укажите корректную ставку. Пример: `/bones 100`")
 	msg.ReplyToMessageID = message.MessageID
 	if err != nil || bet <= 0 {
@@ -38,7 +38,7 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	if bet > balance {
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %d", balance))
+		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %.2f", balance))
 		if _, err := bot.Send(msg); err != nil {
 			log.Printf("Ошибка отправки уведомления: %v", err)
 		}
@@ -98,7 +98,7 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось изменить ваш баланс."))
 			return
 		}
-		resultText += fmt.Sprintf(" **Победа!** Вы оказались удачливее бота и выиграли **%d монет**!", bet)
+		resultText += fmt.Sprintf(" **Победа!** Вы оказались удачливее бота и выиграли **%.2f монет**!", bet)
 	} else if playerValue < botValue {
 		// Игрок проиграл
 		if err := engine.ChangeBalance(user_id, -bet); err != nil {
@@ -106,7 +106,7 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось изменить ваш баланс."))
 			return
 		}
-		resultText += fmt.Sprintf(" **Проигрыш.** Бот победил. Вы потеряли **%d монет**.", bet)
+		resultText += fmt.Sprintf(" **Проигрыш.** Бот победил. Вы потеряли **%2.f монет**.", bet)
 	} else {
 		// Ничья (деньги не списываются)
 		resultText += "🤝 **Ничья!** Силы равны, монеты остаются при вас."
