@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"florenbot/engine"
+	helpers "florenbot/engine/helpers"
 	"fmt"
 	"log"
 	"os"
@@ -36,7 +37,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	var availableActions = []string{"active", "create", "delete", "list", "stats"}
 
 	if len(parts) < 1 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: " + strings.Join(availableActions[:], ", ")))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: "+strings.Join(availableActions[:], ", ")))
 		return
 	}
 
@@ -56,6 +57,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
 			return
 		}
+
+		log.Printf("Баланс пользователя: %.2f", balance)
 
 		if balance < 2000 {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 2000 рублей"))
@@ -87,7 +90,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// Проверяем существование кода
-		_, err = engine.GetCode(code)
+		_, err = helpers.GetCode(code)
 
 		// Если ошибка не связана с отсутствием записи (sql: no rows), значит это системная ошибка
 		if err != nil && err.Error() != "sql: no rows in result set" {
@@ -105,7 +108,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// Создаем код
-		err = engine.CreateCode(code, amount)
+		err = helpers.CreateCode(code, amount, user_id)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка при создании кода: %v", err)
@@ -149,7 +152,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		code := parts[1]
 
-		_, err = engine.GetCode(code)
+		_, err = helpers.GetCode(code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
@@ -167,7 +170,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		err = engine.DeleteCode(code)
+		err = helpers.DeleteCode(code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка при удалении: %v", err)
@@ -197,14 +200,14 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// 2. Проверка, не активирован ли уже код
-		existingPromo, err := engine.GetUserCode(user_id)
+		existingPromo, err := helpers.GetUserCode(user_id)
 		if err != nil || existingPromo != "" {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас уже есть активированный промокод или ошибка БД"))
 			return
 		}
 
 		// 3. Получение суммы промокода
-		amount, err := engine.GetCode(code)
+		amount, err := helpers.GetCode(code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
@@ -214,7 +217,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// 4. Активация: записываем код пользователю (только в БД)
-		err = engine.ActivateCode(user_id, code)
+		err = helpers.ActivateCode(user_id, code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка при активации: %v", err)
@@ -233,10 +236,10 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// Рассчитываем новый баланс
-		newBalance := currentBalance + amount
+		newBalance := currentBalance + float64(amount)
 
 		// Обновляем БД
-		err = engine.UpdateBalanceSQL(user_id, amount)
+		err = engine.UpdateBalanceSQL(user_id, float64(amount))
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка обновления БД: %v", err)
@@ -247,13 +250,13 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// Обновляем КЭШ напрямую
 		key := fmt.Sprintf("user_%d_balance", user_id)
-		engine.SetCache(key, strconv.Itoa(newBalance), 24*time.Hour)
+		engine.SetCache(key, strconv.FormatFloat(newBalance, 'f', 2, 64), 24*time.Hour)
 
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%d рублей. Ваш баланс: %d", amount, newBalance)))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%.2f $. Ваш баланс: %2.f", amount, newBalance)))
 
 	case "list":
 		user_id := uint64(message.From.ID)
-		promocodes, err := engine.GetPromocodesUser(user_id)
+		promocodes, err := helpers.GetPromocodesUser(user_id)
 
 		if err != nil {
 			if debug_type {
@@ -273,44 +276,105 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		sb.WriteString("📋 **Ваши промокоды:**\n\n")
 
 		for _, p := range promocodes {
-			sb.WriteString(fmt.Sprintf("├── `%s` — %d монет\n", p.Code, p.Amount))
+			sb.WriteString(fmt.Sprintf("├── `%s` — %2.f $\n", p.Code, p.Amount))
 		}
 
 		msg := tgbotapi.NewMessage(message.Chat.ID, sb.String())
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
-	// case "stats": {
-	// 	user_id := uint64(message.From.ID)
+	case "edit": {
+		// 1. Проверка пользователя
+		user_id := uint64(message.From.ID)
+		_, err := engine.GetUserByID(user_id)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка получения пользователя: %v", err)
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+			return
+		}
 
-	// 	promocodes, err := engine.GetPromocodesUser(user_id)
-	// 	if err != nil {
-	// 		if debug_type {
-	// 			log.Printf("Ошибка при получении промокодов: %v", err)
-	// 		}
-	// 		log.Printf("Ошибка при получении промокодов: %v", err)
-	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении промокодов"))
-	// 		return
-	// 	}
+		args = message.CommandArguments()
+		parts = strings.Fields(args)
 
-	// 	if len(promocodes) == 0 {
-	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет активных промокодов"))
-	// 		return
-	// 	}
+		if len(parts) < 2 {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/promo edit [код] [сумма]`"))
+			return
+		}
 
-	// 	count, err := engine.GetPromocodesMemberCount()
-	// 	if err != nil {
-	// 		if debug_type {
-	// 			log.Printf("Ошибка при получении количества участников промокодов: %v", err)
-	// 		}
-	// 		log.Printf("Ошибка при получении количества участников промокодов: %v", err)
-	// 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении количества участников промокодов"))
-	// 		return
-	// 	}
+		code := parts[0]
+		amount, err := strconv.ParseFloat(parts[1], 64)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/promo edit [код] [сумма]`"))
+			return
+		}
+
+		code_db, err := helpers.GetUserCode(user_id)
+
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при получении кода: %v", err)
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении кода"))
+			return
+		}
+
+		if code_db != code {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный код"))
+			return
+		}
+
+		// Обновляем БД
+		err = helpers.UpdatePromo(code, amount, user_id)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка обновления БД: %v", err)
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обновлении промокода"))
+			return
+		}
+
+		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Промокод обновлен!\nСумма: %.2f\nНовое имя: %s", amount, code))
+		msg.ParseMode = "Markdown"
+		bot.Send(msg)
+	}
+	case "stats": {
+		count, err := helpers.GetPromocodesMemberCount()
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при получении количества участников промокодов: %v", err)
+			}
+			log.Printf("Ошибка при получении количества участников промокодов: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении количества участников промокодов"))
+			return
+		}
+
+		if len(count) == 0 {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет активных промокодов"))
+			return
+		}
+
+		var report strings.Builder
+		report.WriteString("📊 **Статистика промокодов**\n\n")
+	    report.WriteString("```\n")
+   	 	report.WriteString(fmt.Sprintf("%-12s | %-10s\n", "Промокод", "Участники"))
+   		report.WriteString("---------------------------\n")
+		for code, num := range count {
+				report.WriteString(fmt.Sprintf("%-12s | %-10d\n", code, num))
+		}
+		report.WriteString("```")
+		msg := tgbotapi.NewMessage(message.Chat.ID, report.String())
+		msg.ParseMode = "Markdown"
+		if _, err := bot.Send(msg); err != nil {
+            log.Printf("Ошибка отправки уведомления: %v", err)
+        }
 
 
-	// }
+
+
+	}
 	default:
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестное действие\nВсе действия: " + strings.Join(availableActions[:], ", ")))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестное действие\nВсе действия: "+strings.Join(availableActions[:], ", ")))
 	}
 
 }

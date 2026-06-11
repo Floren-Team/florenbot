@@ -3,7 +3,8 @@ package handlers
 import (
 	"database/sql"
 	"florenbot/engine"
-	"florenbot/helpers"
+	helpers "florenbot/engine/helpers"
+	helper "florenbot/helpers"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
@@ -23,7 +24,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	debug_type := GetEnvBool("DEBUG", false)
 
 	if len(parts) < 1 {
-		clan_id, err := engine.GetUserClanID(user_id)
+		clan_id, err := helpers.GetUserClanID(user_id)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения клана: %v", err)
@@ -32,7 +33,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		clan, err := engine.GetClan(clan_id)
+		clan, err := helpers.GetClan(clan_id)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения клана: %v", err)
@@ -41,7 +42,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		count, _ := engine.GetClanMemberCount(clan.Id)
+		count, _ := helpers.GetClanMemberCount(clan.Id)
 
 		info := fmt.Sprintf("✅ *Информация о клане:*\n\n"+
 			"🆔 ID: `%d`\n"+
@@ -62,7 +63,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "create":
 		{
 			// Пытаемся получить ID клана пользователя
-			_, err := engine.GetUserClanID(user_id)
+			_, err := helpers.GetUserClanID(user_id)
 
 			// 1. Проверяем: если ошибка есть, НО это не "нет строк" (sql.ErrNoRows),
 			// значит произошла реальная ошибка БД (соединение, запрос и т.д.)
@@ -111,7 +112,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			// Пытаемся создать клан
 			name := strings.Join(parts[1:], " ")
-			err = engine.CreateClan(name, fullName, user_id)
+			err = helpers.CreateClan(name, fullName, user_id)
 
 			// 4. Обязательно проверяем, удалось ли создать клан в БД
 			if err != nil {
@@ -127,7 +128,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "getrole":
 		{
-			_, err := engine.GetUserClanID(user_id)
+			_, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -136,7 +137,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -151,7 +152,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "kick":
 		{
 
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -160,7 +161,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -201,7 +202,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			user_reply_id := int64(user_reply_id_raw)
 
-			_, err = engine.GetUserClanID(user_reply_id_raw)
+			_, err = helpers.GetUserClanID(user_reply_id_raw)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -213,7 +214,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// Кикнуть пользователя
-			if err := engine.KickClanUser(clan_id, user_reply_id_raw); err != nil {
+			if err := helpers.KickClanUser(clan_id, user_reply_id_raw); err != nil {
 				if debug_type {
 					log.Printf("Ошибка кикануть пользователя: %v", err)
 				}
@@ -229,7 +230,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "list":
 		{
-			clans, err := engine.GetClans()
+			clans, err := helpers.GetClans()
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения кланов: %v", err)
@@ -260,7 +261,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "ban":
 		{
 
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 
 			if err != nil {
 				if debug_type {
@@ -270,7 +271,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения роли: %v", err)
@@ -308,7 +309,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			user_reply_id := uint64(user_reply.From.ID)
 
-			_, err = engine.GetUserClanID(user_reply_id)
+			_, err = helpers.GetUserClanID(user_reply_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -334,7 +335,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// Забанить пользователя
-			err = engine.BlockMemberClan(clan_id, user_reply_id, reason)
+			err = helpers.BlockMemberClan(clan_id, user_reply_id, reason)
 
 			if err != nil {
 				if debug_type {
@@ -352,7 +353,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "delete":
 		{
-			_, err := engine.GetUserClanID(user_id)
+			_, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -361,7 +362,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			clan_id, err := engine.GetClanByOwnerID(user_id)
+			clan_id, err := helpers.GetClanByOwnerID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения клана: %v", err)
@@ -370,7 +371,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.DeleteClan(clan_id)
+			err = helpers.DeleteClan(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка удаления клана: %v", err)
@@ -388,7 +389,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			_, err := engine.GetUserClanID(user_id)
+			_, err := helpers.GetUserClanID(user_id)
 
 			if err == nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы состоите в клане"))
@@ -407,7 +408,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			code := parts[1]
-			clan_id, err := engine.GetInviteCodeClan(code)
+			clan_id, err := helpers.GetInviteCodeClan(code)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при приглашении в клан: %v", err)
@@ -416,7 +417,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.CheckBlacklist(clan_id, user_id)
+			err = helpers.CheckBlacklist(clan_id, user_id)
 
 			if err != nil {
 				if debug_type {
@@ -426,7 +427,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.JoinClan(clan_id, user_id)
+			err = helpers.JoinClan(clan_id, user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при приглашении в клан: %v", err)
@@ -438,7 +439,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Вы присоеденились в клан!"))
 
 			// Отправляем владельцу сообщение о приглашении
-			owner_id_raw, err := engine.GetClanOwnerID(clan_id)
+			owner_id_raw, err := helpers.GetClanOwnerID(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при приглашении в клан: %v", err)
@@ -457,10 +458,10 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
 				_, _ = bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan revoke недоступна в группах"))
-				return // Додаємо return, щоб бот не виконував код далі
+				return
 			}
 
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -469,7 +470,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -483,8 +484,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			// Спочатку видаляємо код
-			err = engine.RevokeInviteCode(clan_id)
+			err = helpers.RevokeInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -493,8 +493,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			// Після видалення отримуємо новий код (або створюємо, якщо логіка передбачає)
-			newCode, err := engine.GetClanInviteCode(clan_id)
+			newCode, err := helpers.GetClanInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении нового кода: %v", err)
@@ -513,7 +512,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan delcode недоступна в группах"))
 			}
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 
 			if err != nil {
 				if debug_type {
@@ -523,7 +522,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -540,7 +539,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			_, err = engine.GetClanInviteCode(clan_id)
+			_, err = helpers.GetClanInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении приглашения: %v", err)
@@ -549,7 +548,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.DeleteInviteCode(clan_id)
+			err = helpers.DeleteInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении приглашения: %v", err)
@@ -567,7 +566,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
 				return
@@ -581,13 +580,13 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			target_user_id := uint64(reply_msg.From.ID)
 
-			existing_clan, _ := engine.GetUserClanID(target_user_id)
+			existing_clan, _ := helpers.GetUserClanID(target_user_id)
 			if existing_clan != 0 {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь уже состоит в клане"))
 				return
 			}
 
-			err = engine.AddUserToClan(clan_id, target_user_id)
+			err = helpers.AddUserToClan(clan_id, target_user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при приглашении в клан: %v", err)
@@ -605,7 +604,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan createcode недоступна в группах"))
 			}
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 
 			if err != nil {
 				if debug_type {
@@ -615,7 +614,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -632,7 +631,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			_, err = engine.GetClanInviteCode(clan_id)
+			_, err = helpers.GetClanInviteCode(clan_id)
 			if err != nil && err != sql.ErrNoRows {
 				if debug_type {
 					log.Printf("Ошибка при создании приглашения: %v", err)
@@ -645,8 +644,8 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			invite_code := helpers.GenerateCode()
-			err = engine.CreateInviteCode(clan_id, invite_code)
+			invite_code := helper.GenerateCode()
+			err = helpers.CreateInviteCode(clan_id, invite_code)
 
 			if err != nil {
 				if debug_type {
@@ -660,7 +659,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "leave":
 		{
 			// 1. Ищем клан, в котором состоит пользователь (как участник)
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении клана: %v", err)
@@ -674,7 +673,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			// 	log.Printf("Пользователь %d выходит из клана %d", user_id, clan_id)
 			// }
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении владельца клана: %v", err)
@@ -688,7 +687,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			creator_id_raw, err := engine.GetClanOwnerID(clan_id)
+			creator_id_raw, err := helpers.GetClanOwnerID(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении владельца клана: %v", err)
@@ -698,7 +697,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			// 2. Выполняем выход из клана
-			err = engine.LeaveClan(clan_id, user_id)
+			err = helpers.LeaveClan(clan_id, user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при выходе из клана: %v", err)
@@ -715,7 +714,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "getcode":
 		{
-			clan_id, err := engine.GetUserClanID(user_id)
+			clan_id, err := helpers.GetUserClanID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении клана: %v", err)
@@ -724,7 +723,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			role, err := engine.GetUserClanRole(user_id)
+			role, err := helpers.GetUserClanRole(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при удалении клана: %v", err)
@@ -741,7 +740,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			invite_code, err := engine.GetClanInviteCode(clan_id)
+			invite_code, err := helpers.GetClanInviteCode(clan_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при получении приглашения: %v", err)

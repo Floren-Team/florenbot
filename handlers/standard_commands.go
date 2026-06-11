@@ -89,7 +89,6 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"GitHub: https://github.com/Floren-Team/florenbot"))
 }
 
-
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)

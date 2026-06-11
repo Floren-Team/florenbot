@@ -13,7 +13,7 @@ import (
 var DB *sql.DB
 
 // Функция для отладки (дебаггер)
-func debug(format string, v ...interface{}) {
+func Debug(format string, v ...interface{}) {
 	if os.Getenv("DEBUG") == "true" {
 		log.Printf("[DEBUG] "+format, v...)
 	}
@@ -22,7 +22,7 @@ func debug(format string, v ...interface{}) {
 func InitDB() {
 	var err error
 	dbMode := getEnv("DB_MODE", "mysql")
-	debug("Режим БД: %s", dbMode)
+	Debug("Режим БД: %s", dbMode)
 
 	if dbMode == "mysql" {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
@@ -80,6 +80,7 @@ func InitDB() {
 			`CREATE TABLE IF NOT EXISTS promocodes (
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				code VARCHAR(255) NOT NULL UNIQUE, 
+				owner_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
 				amount INT NOT NULL, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,
@@ -95,8 +96,8 @@ func InitDB() {
 				positive_reputation INT DEFAULT 0, 
 				clan_id INT DEFAULT NULL, 
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
-				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE CASCADE
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE ON UPDATE CASCADE,
+				FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE CASCADE ON UPDATE CASCADE
 			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS reports (
@@ -206,7 +207,7 @@ func InitDB() {
 		}
 	}
 	for _, query := range queries {
-		debug("Выполнение SQL: %s", query)
+		Debug("Выполнение SQL: %s", query)
 		if _, err = DB.Exec(query); err != nil {
 			log.Fatalf("❌ Ошибка создания таблицы: %v", err)
 		}
@@ -215,13 +216,13 @@ func InitDB() {
 	log.Println("✅ Подключение к БД успешно")
 }
 
-func GetUserBalanceSQL(id uint64, username string) (int, error) {
-	debug("GetUserBalanceSQL: id=%d", id)
-	var balance int
+func GetUserBalanceSQL(id uint64, username string) (float64, error) {
+	Debug("GetUserBalanceSQL: id=%d", id)
+	var balance float64
 	err := DB.QueryRow("SELECT balance FROM users WHERE id = ?", id).Scan(&balance)
 
 	if err == sql.ErrNoRows {
-		debug("Пользователь не найден, создаем: %d", id)
+		Debug("Пользователь не найден, создаем: %d", id)
 		_, err = DB.Exec("INSERT INTO users (id, username, balance) VALUES (?, ?, ?)", id, username, 1000)
 		return 1000, err
 	}
@@ -235,7 +236,7 @@ func GetUserBalanceSQL(id uint64, username string) (int, error) {
 // 	return telegram_id, err
 // }
 
-func UpdateBalanceSQL(id uint64, amount int) error {
+func UpdateBalanceSQL(id uint64, amount float64) error {
 	_, err := DB.Exec("UPDATE users SET balance = balance + ? WHERE id = ?", amount, id)
 	return err
 }

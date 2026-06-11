@@ -11,7 +11,7 @@ import (
 	"florenbot/bones"
 	"florenbot/engine"
 	"florenbot/handlers"
-	license "florenbot/license"
+	// license "florenbot/license"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 )
@@ -21,17 +21,25 @@ func main() {
 		log.Println("⚠️ Файл .env не найден")
 	}
 
-	if !license.LoadLicense() {
-		os.Exit(1)
-	}
+	// if !license.LoadLicense() {
+	// 	os.Exit(1)
+	// }
 
-	if !license.CheckLicense() {
-		os.Exit(1)
-	}
+	// if !license.CheckLicense() {
+	// 	os.Exit(1)
+	// }
+
+	// isActive, err := license.GetExpireLicense()
+
+	// if err != nil {
+	// 	log.Println("❌ Ошибка получения информации о лицензии:", err)
+	// } else if !*isActive {
+	// 	log.Println("❌ Лицензия истекла")
+	// 	os.Exit(1)
+	// }
 
 	engine.InitDB()
 	engine.InitCache()
-
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -118,7 +126,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "casino":
 
 		handlers.HandleCasino(bot, message)
-
+	case "clan":
+		handlers.HandleClan(bot, message)
 	case "roulette":
 
 		handlers.HandleRoulette(bot, message)
