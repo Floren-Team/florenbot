@@ -14,3 +14,9 @@ build:
 
 run:
 	go run .
+
+vet:
+	go vet ./...
+
+lint:
+	golangci-lint run ./...
