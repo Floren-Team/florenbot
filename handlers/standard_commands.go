@@ -74,7 +74,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"🔹 `/report` — Сделать отчет\n\n"+
 		"Желаем удачи! 🍀\n\n"+
 		"Версия бота: %s\nДата: %s\nВладелец: %s",
-		message.From.FirstName, userProfile.Balance, consts.VERSION, consts.OWNER)
+		message.From.FirstName, userProfile.Balance, consts.VERSION, consts.DATE_LAST_UPDATE, consts.OWNER)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
