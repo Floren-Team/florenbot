@@ -1,7 +1,7 @@
 package consts
 
-const ***REMOVED***_FILE = "license.txt"
+const VERSION = "5.0"
 
-const EAP_VERSION = "5.0-2026 (EAP)"
+const DATE_LAST_UPDATE = "11.06.2026"
 
-const ***REMOVED***_FILE_ASC = "license.txt.asc"
+const OWNER = "Egor Luchiy"

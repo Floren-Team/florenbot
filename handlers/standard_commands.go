@@ -73,8 +73,8 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Новые команды:\n\n"+
 		"🔹 `/report` — Сделать отчет\n\n"+
 		"Желаем удачи! 🍀\n\n"+
-		"Версия бота:  %s\nДата: 03.06.2026",
-		message.From.FirstName, userProfile.Balance, consts.EAP_VERSION)
+		"Версия бота: %s\nДата: %s\nВладелец: %s",
+		message.From.FirstName, userProfile.Balance, consts.VERSION, consts.OWNER)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
@@ -84,9 +84,9 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Информация о боте\n\n"+
 		"Версия: %s\n"+
-		"Дата обновления: 11.06.2026\n"+
-		"Автор: Egor Luchiy\n"+
-		"GitHub: https://github.com/Floren-Team/florenbot", consts.EAP_VERSION)))
+		"Дата обновления: %s\n"+
+		"Владелец: %s\n"+
+		"GitHub: https://github.com/Floren-Team/florenbot", consts.VERSION, consts.DATE_LAST_UPDATE, consts.OWNER)))
 }
 
 // HandleBalance обрабатывает команду /balance
