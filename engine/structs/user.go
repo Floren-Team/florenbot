@@ -5,6 +5,7 @@ type User struct {
     Username           string  `json:"username"`
     Balance            float32 `json:"balance"`
     FlorenCoin         float32 `json:"floren_coin"`
+	Role			   string  `json:"role"`
     PromoCode          string  `json:"promocode"` 
     ClanId             *int64  `json:"clan_id"`   
     NegativeReputation int     `json:"negative_reputation"`
