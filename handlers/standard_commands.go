@@ -3,18 +3,15 @@ package handlers
 import (
 	"fmt"
 	"log"
-
-	"florenbot/engine"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-
 	consts "florenbot/consts"
+	helpers "florenbot/engine/helpers"
 )
 
 // HandleStart обрабатывает команду /start
 func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
-	userProfile, err := engine.GetUserByID(user_id)
+	userProfile, err := helpers.GetUserByID(user_id)
 	debug_type := GetEnvBool("DEBUG", false)
 	if debug_type {
 		log.Printf("Пользователь %s начал игровой клуб", message.From.FirstName)
@@ -32,7 +29,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		if debug_type {
 			log.Printf("Пользователь %s создается...", message.From.FirstName)
 		}
-		userProfile, err = engine.CreateUser(
+		userProfile, err = helpers.CreateUser(
 			user_id,
 			message.From.UserName,
 			message.From.FirstName,
@@ -92,7 +89,7 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
-	userProfile, err := engine.GetUserByID(user_id)
+	userProfile, err := helpers.GetUserByID(user_id)
 	if err != nil {
 		log.Printf("Ошибка получения баланса: %v", err)
 		return
@@ -108,7 +105,7 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 // HandleProfile обрабатывает команду /profile
 func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
-	userProfile, err := engine.GetUserByID(user_id)
+	userProfile, err := helpers.GetUserByID(user_id)
 	if err != nil {
 		log.Printf("Ошибка профиля: %v", err)
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))

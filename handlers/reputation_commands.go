@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"florenbot/engine"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
+	std_helpers "florenbot/helpers"
+	helpers "florenbot/engine/helpers"
 )
 
 func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -23,9 +24,9 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	reply_user_id := uint64(user_reply.From.ID)
-	debug_type := GetEnvBool("DEBUG", false)
+	debug_type := std_helpers.GetEnvBool("DEBUG", false)
 
-	_, err := engine.GetUserByID(reply_user_id)
+	_, err := helpers.GetUserByID(reply_user_id)
 
 	if err != nil {
 		if debug_type {
@@ -39,7 +40,7 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	current_reputate, err := engine.GetReputation(reply_user_id)
+	current_reputate, err := helpers.GetReputation(reply_user_id)
 
 	if err != nil {
 		if debug_type {
@@ -57,7 +58,7 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	log.Println("Репутация пользователя", reply_user_id, "увеличена на 200 : ", total_reputate)
 	msgText := "И тебе!"
 
-	if err := engine.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
+	if err := helpers.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе")
 		msg.ReplyToMessageID = message.MessageID
 		if _, err := bot.Send(msg); err != nil {
@@ -119,7 +120,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if _, err := engine.GetUserByID(uint64(message.From.ID)); err != nil {
+	if _, err := helpers.GetUserByID(uint64(message.From.ID)); err != nil {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы (зарегистрируйтесь в боте)")
 		msg.ReplyToMessageID = message.MessageID
 		if _, err := bot.Send(msg); err != nil {
@@ -148,7 +149,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	switch action {
 	case "отриц":
 		{
-			_, err := engine.GetUserByID(reply_user_id)
+			_, err := helpers.GetUserByID(reply_user_id)
 
 			if err != nil {
 				if debug_type {
@@ -158,7 +159,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			current_reputate, err := engine.GetReputation(reply_user_id)
+			current_reputate, err := helpers.GetReputation(reply_user_id)
 
 			if err != nil {
 				if debug_type {
@@ -176,7 +177,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			total_reputate := current_reputate - reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s уменьшена на %d", message.ReplyToMessage.From.FirstName, reputate)
 
-			if err := engine.UpdateNetagiveReputation(reply_user_id, total_reputate); err != nil {
+			if err := helpers.UpdateNetagiveReputation(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
 				return
 			}
@@ -188,7 +189,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "полож":
 		{
-			_, err := engine.GetUserByID(reply_user_id)
+			_, err := helpers.GetUserByID(reply_user_id)
 
 			if err != nil {
 				if debug_type {
@@ -198,7 +199,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			current_reputate, err := engine.GetReputation(reply_user_id)
+			current_reputate, err := helpers.GetReputation(reply_user_id)
 
 			if err != nil {
 				if debug_type {
@@ -211,7 +212,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			total_reputate := current_reputate + reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s увеличена на %d", message.ReplyToMessage.From.FirstName, reputate)
 
-			if err := engine.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
+			if err := helpers.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
 				return
 			}

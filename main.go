@@ -11,6 +11,7 @@ import (
 	"florenbot/bones"
 	"florenbot/engine"
 	"florenbot/handlers"
+	admin_handlers "florenbot/handlers/admin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 )
@@ -19,7 +20,6 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️ Файл .env не найден")
 	}
-
 
 	engine.InitDB()
 	engine.InitCache()
@@ -122,6 +122,9 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "q":
 
 		handlers.HandleQuit(bot, message)
+
+	case "newsletter":
+		admin_handlers.HandleNewsLetter(bot, message)
 
 	case "promo":
 
