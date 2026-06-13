@@ -135,3 +135,25 @@ func ShutdownCache() {
 		}
 	}
 }
+
+
+func HMSet(key string, values map[string]interface{}) error {
+	if(getEnv("CACHE_ENGINE", "local") != "redis") {
+		return nil
+	}
+    return RDB.HSet(ctx, key, values).Err()
+}
+
+func HGetAll(key string) (map[string]string, error) {
+	if(getEnv("CACHE_ENGINE", "local") != "redis") {
+		return nil, nil
+	}
+    return RDB.HGetAll(ctx, key).Result()
+}
+
+func Expire(key string, duration time.Duration) error {
+	if(getEnv("CACHE_ENGINE", "local") != "redis") {
+		return nil
+	}
+    return RDB.Expire(ctx, key, duration).Err()
+}

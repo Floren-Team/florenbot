@@ -7,7 +7,6 @@ import (
 	"log"
 )
 
-
 func ActivateCode(id uint64, code string) error {
 	engine.Debug("Активация кода: %s для пользователя %d", code, id)
 	_, err := engine.DB.Exec("UPDATE users SET promocode = ? WHERE id = ?", code, id)
@@ -21,24 +20,24 @@ func CreateCode(code string, amount int, owner_id uint64) error {
 }
 
 func GetPromocodesMemberCount() (map[string]int, error) {
-stats := make(map[string]int)
-    query := `SELECT p.code, COUNT(u.id) FROM promocodes p LEFT JOIN users u ON p.code = u.promocode GROUP BY p.code`
+	stats := make(map[string]int)
+	query := `SELECT p.code, COUNT(u.id) FROM promocodes p LEFT JOIN users u ON p.code = u.promocode GROUP BY p.code`
 
-    rows, err := engine.DB.Query(query) 
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := engine.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var code string
-        var count int
-        if err := rows.Scan(&code, &count); err != nil {
-            return nil, err
-        }
-        stats[code] = count
-    }
-    return stats, nil
+	for rows.Next() {
+		var code string
+		var count int
+		if err := rows.Scan(&code, &count); err != nil {
+			return nil, err
+		}
+		stats[code] = count
+	}
+	return stats, nil
 }
 
 func GetUserCode(userID uint64) (string, error) {
@@ -117,8 +116,6 @@ func UpdatePromo(code string, amount float64, user_id uint64) error {
 
 	return tx.Commit()
 }
-
-
 
 func GetCode(code string) (float64, error) {
 	engine.Debug("Проверка кода: %s", code)

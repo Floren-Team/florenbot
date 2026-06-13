@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"florenbot/engine"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strings"
+	helpers "florenbot/engine/helpers"
 )
 
 func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -42,7 +42,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			exists_user, err := engine.GetUserByID(user_id)
+			exists_user, err := helpers.GetUserByID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения пользователя: %v", err)
@@ -62,7 +62,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				log.Printf("Текст отчета: %s\n", text)
 			}
 
-			exists, err := engine.HasReport(user_id)
+			exists, err := helpers.HasReport(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка проверки наличия отчета: %v", err)
@@ -76,7 +76,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.CreateReport(user_id, text)
+			err = helpers.CreateReport(user_id, text)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка создания отчета: %v", err)
@@ -91,7 +91,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	case "delete":
 		{
-			exists_user, err := engine.GetUserByID(user_id)
+			exists_user, err := helpers.GetUserByID(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения пользователя: %v", err)
@@ -105,7 +105,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			exists, err := engine.HasReport(user_id)
+			exists, err := helpers.HasReport(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка проверки наличия отчета: %v", err)
@@ -119,7 +119,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = engine.DeleteReport(user_id)
+			err = helpers.DeleteReport(user_id)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка удаления отчета: %v", err)
