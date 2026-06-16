@@ -13,7 +13,7 @@ build:
 	./build.sh
 
 run:
-	go run .
+	go run ./bot
 
 vet:
 	go vet ./...
