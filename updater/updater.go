@@ -20,6 +20,7 @@ const (
 	GitHubRepo      = "florenbot"
 	VersionFile     = "version.txt"
 	CURRENT_VERSION = "v5.3"
+	UserAgent       = "FlorenBot-Updater/1.0"
 )
 
 type GitHubRelease struct {
@@ -43,18 +44,14 @@ func main() {
 		return
 	}
 
-	// Визначаємо версію для старту
 	currentVer := readLocalVersion()
 	if currentVer == "0.0.0" {
 		currentVer = CURRENT_VERSION
 	}
 
 	log.Printf("Current version: %s", currentVer)
-	
-	// Запуск фонового оновлювача
 	RunUpdaterDaemon()
-	
-	select {} // Блокування головного потоку
+	select {}
 }
 
 func RunUpdaterDaemon() {
@@ -62,7 +59,6 @@ func RunUpdaterDaemon() {
 	go func() {
 		log.Println("Background updater started (3-minute interval).")
 		for {
-			// Щоразу зчитуємо актуальну версію з файлу перед перевіркою
 			currentVer := readLocalVersion()
 			if currentVer == "0.0.0" {
 				currentVer = CURRENT_VERSION
@@ -85,6 +81,20 @@ func updateLocalVersion(newVersion string) {
 	_ = os.WriteFile(VersionFile, []byte(newVersion), 0644)
 }
 
+// Створення HTTP клієнта з User-Agent
+func newHttpClient() *http.Client {
+	return &http.Client{Timeout: 30 * time.Second}
+}
+
+func doRequest(url string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	return newHttpClient().Do(req)
+}
+
 func UpdateIfNeeded(owner, repo, currentVersion string) {
 	release, err := GetLatestRelease(owner, repo)
 	if err != nil {
@@ -93,7 +103,6 @@ func UpdateIfNeeded(owner, repo, currentVersion string) {
 	}
 
 	if release.TagName == currentVersion {
-		log.Printf("Current version %s is up to date.", currentVersion)
 		return
 	}
 
@@ -117,12 +126,16 @@ func UpdateIfNeeded(owner, repo, currentVersion string) {
 
 func GetLatestRelease(owner, repo string) (*GitHubRelease, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(url)
+	resp, err := doRequest(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+	}
+
 	var release GitHubRelease
 	err = json.NewDecoder(resp.Body).Decode(&release)
 	return &release, err
@@ -130,14 +143,15 @@ func GetLatestRelease(owner, repo string) (*GitHubRelease, error) {
 
 func runUpdateIntegrated(url string) bool {
 	tmpPath := filepath.Join(os.TempDir(), "app_update_tmp_"+time.Now().Format("20060102150405"))
-	resp, err := http.Get(url)
+	
+	resp, err := doRequest(url)
 	if err != nil {
 		log.Printf("Download error: %v", err)
 		return false
 	}
 	defer resp.Body.Close()
 
-	out, err := os.Create(tmpPath)
+	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY, 0755) // Права на виконання
 	if err != nil {
 		return false
 	}
@@ -170,13 +184,13 @@ func replaceBinary(newPath string) error {
 
 func runUpdateAutonomous(targetPath, url string) error {
 	tmpPath := targetPath + ".tmp"
-	resp, err := http.Get(url)
+	resp, err := doRequest(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	
-	out, err := os.Create(tmpPath)
+	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
 	}
