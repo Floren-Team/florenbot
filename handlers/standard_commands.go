@@ -148,7 +148,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
-		"└── **Баланс:** `%.2f` рублей 🪙\n"+
+		"└── **Баланс:** `%.2f` $ 🪙\n"+
 		"└── **Floren Coin:** `%.2f` монет 🪙\n"+
 		"└── **Негативных репутации:** `%d`\n"+
 		"└── **Роль:** `%s`\n"+
