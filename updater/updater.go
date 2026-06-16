@@ -23,7 +23,7 @@ const (
 	GitHubRepo    = "florenbot"
 	VersionFile   = "version.txt"
 	UserAgent     = "FlorenBot-Updater/2.0"
-	LATEST_VERSION  = "v5.4"
+	LATEST_VERSION  = "v5.6"
 )
 
 func main() {
