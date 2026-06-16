@@ -3,7 +3,7 @@
 
 1. Скачайте архив Go
  ```bash
-    wget https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
+    wget https://go.dev/dl/go1.26.4.linux-amd64.tar.gz
    ```
 
 2. Распакуйте архив в /usr/local/bin:
