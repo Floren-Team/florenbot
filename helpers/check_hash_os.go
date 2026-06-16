@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"os/exec"
 )
 
 func CheckHashAndGpg() error {
@@ -58,16 +59,22 @@ func CheckHashAndGpg() error {
 		return nil
 
 	case "linux":
-		// Теперь функция VerifyBotSignature требует только путь к бинарнику,
-		// так как публичный ключ и подпись уже вшиты (embedded) в код.
-		log.Printf("Запуск верификации подписи для: %s", exePath)
+        // Шлях до файлу підпису .asc
+        sigPath := exePath + ".asc"
+        
+        if !fileExists(sigPath) {
+            return fmt.Errorf("Ошибка проверки GPG: не удалось найти файл подписи: %s", sigPath)
+        }
 
-		err := VerifyBotSignature(exePath)
-		if err != nil {
-			return fmt.Errorf("ошибка проверки подписи: %w", err)
-		}
-		return nil
-
+        log.Printf("Проверка подписи для: %s", exePath)
+        
+        cmd := exec.Command("gpg", "--verify", sigPath, exePath)
+        if output, err := cmd.CombinedOutput(); err != nil {
+            return fmt.Errorf("Ошибка проверки GPG: %s", string(output))
+        }
+        
+        log.Println("Цифровая подпись успешно проверена.")
+        return nil
 	default:
 		return fmt.Errorf("ОС %s не поддерживается", runtime.GOOS)
 	}

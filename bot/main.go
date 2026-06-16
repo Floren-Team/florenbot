@@ -8,16 +8,19 @@ import (
 	"syscall"
 	"time"
 
+	"florenbot/consts"
 	helpers "florenbot/helpers"
 
+	"flag"
 	"florenbot/bones"
 	"florenbot/engine"
 	"florenbot/handlers"
 	admin_handlers "florenbot/handlers/admin"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/joho/godotenv"
 	"runtime"
 	_ "time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -25,14 +28,34 @@ func main() {
 		log.Println("⚠️ Файл .env не найден")
 	}
 
+	verify := flag.Bool("skip", false, "Пропустить проверки хеширования")
+	version := flag.Bool("version", false, "Версия бота")
+	flag.Parse()
+
+	if *version {
+		log.Printf("Версия: %s", consts.VERSION)
+		os.Exit(0)
+	}
+
+	
+
+
+
+	if *verify {
+        log.Println("⚠️ Пропускаем проверку хеширования (режим --skip)")
+    } else {
+		log.Println("Проверка хеширования...")
+        if err := helpers.CheckHashAndGpg(); err != nil {
+            panic(err)
+        }
+    }
+	
+
 	log.Printf("ОС: %s, Архитектура: %s", runtime.GOOS, runtime.GOARCH)
 
 	time.Sleep(4 * time.Second)
 
-	// Проверка хеша
-	if err := helpers.CheckHashAndGpg(); err != nil {
-		panic(err)
-	}
+
 
 	engine.InitDB()
 	engine.InitCache()

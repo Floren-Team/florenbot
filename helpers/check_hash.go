@@ -1,60 +1,16 @@
 package helpers
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
 	_ "embed"
 	"encoding/hex"
-	"fmt"
 	"hash"
 	"io"
 	"log"
 	"os"
 	"strings"
-
-	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/armor"
 )
-
-//go:embed assets/publickey.asc
-var publicKeyContent []byte
-
-//go:embed assets/florenbot_linux_amd64.asc
-var signatureContent []byte
-
-// VerifyBotSignature теперь использует встроенные данные, а не системный GPG
-
-func VerifyBotSignature(binaryPath string) error {
-    // 1. Читаємо ключ (це у вас вже працює)
-    keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(publicKeyContent))
-    if err != nil {
-        return fmt.Errorf("помилка ключа: %w", err)
-    }
-
-    // 2. Відкриваємо бінарник
-    binaryFile, err := os.Open(binaryPath)
-    if err != nil {
-        return fmt.Errorf("помилка файлу: %w", err)
-    }
-    defer binaryFile.Close()
-
-    // 3. РОЗПАШОВУЄМО ARMOR підпису (перетворюємо текст на бінарний потік)
-    block, err := armor.Decode(bytes.NewReader(signatureContent))
-    if err != nil {
-        return fmt.Errorf("помилка декодування armor: %w", err)
-    }
-
-    // 4. Тепер передаємо цей бінарний потік у перевірку
-    _, err = openpgp.CheckDetachedSignature(keyring, binaryFile, block.Body, nil)
-    if err != nil {
-        return fmt.Errorf("помилка верифікації: %w", err)
-    }
-
-    log.Println("Підпис успішно перевірено.")
-    return nil
-}
-
 
 func GetFileHashAndVerify(filePath string, algo string, expectedHash string) {
 	f, err := os.Open(filePath)
