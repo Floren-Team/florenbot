@@ -1,203 +1,177 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const (
-	GitHubOwner     = "Floren-Team"
-	GitHubRepo      = "florenbot"
-	VersionFile     = "version.txt"
-	CURRENT_VERSION = "v5.3"
-	UserAgent       = "FlorenBot-Updater/1.0"
+	GitHubOwner   = "Floren-Team"
+	GitHubRepo    = "florenbot"
+	VersionFile   = "version.txt"
+	UserAgent     = "FlorenBot-Updater/2.0"
+	LATEST_VERSION  = "v5.4"
 )
 
-type GitHubRelease struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
-}
-
 func main() {
-	targetPath := flag.String("target", "", "Path to the executable to update")
-	updateURL := flag.String("url", "", "URL to download the update from")
-	flag.Parse()
+	log.Printf("[INFO] Initializing. OS: %s, Arch: %s", runtime.GOOS, runtime.GOARCH)
 
-	if *targetPath != "" && *updateURL != "" {
-		log.Println("Autonomous mode: starting update...")
-		if err := runUpdateAutonomous(*targetPath, *updateURL); err != nil {
-			log.Fatalf("Update failed: %v", err)
-		}
-		return
-	}
-
-	currentVer := readLocalVersion()
-	if currentVer == "0.0.0" {
-		currentVer = CURRENT_VERSION
-	}
-
-	log.Printf("Current version: %s", currentVer)
-	RunUpdaterDaemon()
-	select {}
-}
-
-func RunUpdaterDaemon() {
-	ticker := time.NewTicker(3 * time.Minute)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		log.Println("Background updater started (3-minute interval).")
-		for {
-			currentVer := readLocalVersion()
-			if currentVer == "0.0.0" {
-				currentVer = CURRENT_VERSION
-			}
-			UpdateIfNeeded(GitHubOwner, GitHubRepo, currentVer)
-			<-ticker.C
-		}
+		<-c
+		log.Println("[INFO] Shutting down gracefully...")
+		os.Exit(0)
 	}()
-}
 
-func readLocalVersion() string {
-	data, err := os.ReadFile(VersionFile)
-	if err != nil {
-		return "0.0.0"
+	for {
+		log.Println("[INFO] Checking for updates...")
+		checkAndUpdate()
+		log.Println("[INFO] Waiting 3 minutes before next check...")
+		time.Sleep(3 * time.Minute)
 	}
-	return strings.TrimSpace(string(data))
 }
 
-func updateLocalVersion(newVersion string) {
-	_ = os.WriteFile(VersionFile, []byte(newVersion), 0644)
-}
-
-// Створення HTTP клієнта з User-Agent
-func newHttpClient() *http.Client {
-	return &http.Client{Timeout: 30 * time.Second}
-}
-
-func doRequest(url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", UserAgent)
-	return newHttpClient().Do(req)
-}
-
-func UpdateIfNeeded(owner, repo, currentVersion string) {
-	release, err := GetLatestRelease(owner, repo)
-	if err != nil {
-		log.Printf("Failed to fetch release: %v", err)
-		return
-	}
-
-	if release.TagName == currentVersion {
-		return
-	}
-
-	log.Printf("New version found: %s (local: %s). Starting update...", release.TagName, currentVersion)
+func checkAndUpdate() bool {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", GitHubOwner, GitHubRepo)
 	
-	osName := strings.ToLower(runtime.GOOS)
-	archName := strings.ToLower(runtime.GOARCH)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("[ERROR] Network error: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	json.NewDecoder(resp.Body).Decode(&release)
+
+	// Читаємо поточну версію
+	var currentVer string
+	localVerData, err := os.ReadFile(VersionFile)
+
+	if err != nil {
+        log.Printf("[INFO] Version file not found, assuming %s", LATEST_VERSION)
+        currentVer = LATEST_VERSION
+    } else {
+        currentVer = strings.TrimSpace(string(localVerData))
+    }
+
+
+
+
+	log.Printf("[DEBUG] Local version: '%s', GitHub latest: '%s'", currentVer, release.TagName)
+
+	// ПЕРЕВІРКА: якщо версії ідентичні - виходимо
+	if release.TagName != "" && release.TagName == currentVer {
+		log.Printf("[INFO] Version %s is already up to date. Skipping.", release.TagName)
+		return false
+	}
+
+	log.Printf("[INFO] Update required: %s -> %s", currentVer, release.TagName)
+	osTag, archTag := strings.ToLower(runtime.GOOS), runtime.GOARCH
 
 	for _, asset := range release.Assets {
-		assetName := strings.ToLower(asset.Name)
-		if strings.Contains(assetName, osName) && strings.Contains(assetName, archName) {
-			log.Printf("Downloading asset: %s", asset.Name)
-			if runUpdateIntegrated(asset.BrowserDownloadURL) {
-				updateLocalVersion(release.TagName)
-				log.Println("Update successful.")
+		name := strings.ToLower(asset.Name)
+		if strings.Contains(name, osTag) && strings.Contains(name, archTag) {
+			log.Printf("[INFO] Downloading asset: %s", name)
+			if performUpdate(asset.BrowserDownloadURL, name) {
+				// Записуємо нову версію в файл тільки після успішного оновлення
+				_ = os.WriteFile(VersionFile, []byte(release.TagName), 0644)
+				log.Printf("[SUCCESS] Updated to %s", release.TagName)
+				return true
 			}
-			return
 		}
 	}
+	return false
 }
 
-func GetLatestRelease(owner, repo string) (*GitHubRelease, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-	resp, err := doRequest(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
-	}
-
-	var release GitHubRelease
-	err = json.NewDecoder(resp.Body).Decode(&release)
-	return &release, err
-}
-
-func runUpdateIntegrated(url string) bool {
-	tmpPath := filepath.Join(os.TempDir(), "app_update_tmp_"+time.Now().Format("20060102150405"))
+func performUpdate(url, filename string) bool {
+	tmpPath := filepath.Join(os.TempDir(), filename)
 	
-	resp, err := doRequest(url)
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Download error: %v", err)
+		log.Printf("[ERROR] Download failed: %v", err)
 		return false
 	}
 	defer resp.Body.Close()
 
-	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY, 0755) // Права на виконання
-	if err != nil {
-		return false
-	}
+	out, _ := os.Create(tmpPath)
 	_, err = io.Copy(out, resp.Body)
 	out.Close()
 	if err != nil {
+		log.Printf("[ERROR] Write failed: %v", err)
 		return false
 	}
 
-	return replaceBinary(tmpPath) == nil
-}
+	log.Printf("[DEBUG] Extraction starting...")
+	currDir, _ := os.Getwd()
 
-func replaceBinary(newPath string) error {
-	exePath, _ := os.Executable()
-	oldPath := exePath + ".old"
-	
-	_ = os.Remove(oldPath)
-	_ = os.Rename(exePath, oldPath)
-	err := os.Rename(newPath, exePath)
+	if strings.HasSuffix(filename, ".zip") {
+		err = unzip(tmpPath, currDir)
+	} else {
+		err = untar(tmpPath, currDir)
+	}
+
+	os.Remove(tmpPath)
 	if err != nil {
-		_ = os.Rename(oldPath, exePath)
-		return err
+		log.Printf("[ERROR] Extraction error: %v", err)
+		return false
 	}
 	
-	cmd := exec.Command(exePath, os.Args[1:]...)
-	cmd.Start()
-	os.Exit(0)
+	return true
+}
+
+func untar(path, dest string) error {
+	f, _ := os.Open(path)
+	defer f.Close()
+	gzr, _ := gzip.NewReader(f)
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF { break }
+		if header.FileInfo().IsDir() { continue }
+		
+		target := filepath.Join(dest, header.Name)
+		log.Printf("[DEBUG] Extracting: %s", header.Name)
+		
+		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		io.Copy(outFile, tr)
+		outFile.Close()
+	}
 	return nil
 }
 
-func runUpdateAutonomous(targetPath, url string) error {
-	tmpPath := targetPath + ".tmp"
-	resp, err := doRequest(url)
-	if err != nil {
-		return err
+func unzip(path, dest string) error {
+	r, _ := zip.OpenReader(path)
+	defer r.Close()
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() { continue }
+		target := filepath.Join(dest, f.Name)
+		log.Printf("[DEBUG] Extracting: %s", f.Name)
+		
+		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+		rc, _ := f.Open()
+		io.Copy(outFile, rc)
+		outFile.Close(); rc.Close()
 	}
-	defer resp.Body.Close()
-	
-	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY, 0755)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(out, resp.Body)
-	out.Close()
-
-	_ = os.Remove(targetPath + ".old")
-	_ = os.Rename(targetPath, targetPath+".old")
-	return os.Rename(tmpPath, targetPath)
+	return nil
 }
