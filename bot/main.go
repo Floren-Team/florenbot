@@ -110,7 +110,7 @@ func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	text := message.Text
 	lowerText := strings.ToLower(text)
 
-	if strings.Contains(lowerText, "спасибо") || strings.Contains(lowerText, "дякую") {
+	if strings.Contains(lowerText, "спасибо") {
 		log.Printf("Зафиксирована благодарность от @%s", message.From.UserName)
 		handlers.HandleThanks(bot, message)
 		return

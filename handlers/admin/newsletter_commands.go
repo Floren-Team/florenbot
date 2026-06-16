@@ -73,6 +73,8 @@ func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				)
 			}
 		}
+	case "chat":
+		
 	default:
 		{
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/newsletter [private] [текст]`"))

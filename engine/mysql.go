@@ -64,154 +64,160 @@ func InitDB() {
 		log.Fatalf("❌ Не удалось подключиться к БД: %v", err)
 	}
 
-	// SQL-запросы для создания таблиц
+
 	var queries []string
+
+
 	if dbMode == "mysql" {
 		queries = []string{
+			// 1. Таблицы без внешних ключей
 			`CREATE TABLE IF NOT EXISTS clans (
-			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-			name VARCHAR(255) NOT NULL, 
-			owner_id BIGINT NOT NULL, 
-			owner_name VARCHAR(32) NOT NULL, 
-			invite_code VARCHAR(32) NULL UNIQUE,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		) ENGINE=InnoDB;`,
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				name VARCHAR(255) NOT NULL, 
+				owner_id BIGINT NOT NULL, 
+				owner_name VARCHAR(32) NOT NULL, 
+				invite_code VARCHAR(32) NULL UNIQUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY, 
-			username VARCHAR(255), 
-			balance FLOAT DEFAULT 1000,
-			first_name VARCHAR(32), 
-			promocode VARCHAR(32),
-			role VARCHAR(32) DEFAULT 'user', 
-			floren_coin FLOAT DEFAULT 300000,
-			negative_reputation INT DEFAULT 0, 
-			positive_reputation INT DEFAULT 0, 
-			clan_id INT DEFAULT NULL, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL ON UPDATE CASCADE
-		) ENGINE=InnoDB;`,
+				id BIGINT PRIMARY KEY, 
+				username VARCHAR(255), 
+				balance FLOAT DEFAULT 1000,
+				first_name VARCHAR(32), 
+				promocode VARCHAR(32),
+				role VARCHAR(32) DEFAULT 'user', 
+				floren_coin FLOAT DEFAULT 300000,
+				negative_reputation INT DEFAULT 0, 
+				positive_reputation INT DEFAULT 0, 
+				clan_id INT DEFAULT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS promocodes (
-			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-			code VARCHAR(255) NOT NULL UNIQUE, 
-			owner_id BIGINT NOT NULL UNIQUE,
-			amount INT NOT NULL, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-		) ENGINE=InnoDB;`,
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				code VARCHAR(255) NOT NULL UNIQUE, 
+				owner_id BIGINT NOT NULL UNIQUE,
+				amount INT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
-			`ALTER TABLE users ADD FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL ON UPDATE CASCADE;`,
+			`CREATE TABLE IF NOT EXISTS chats (
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				chat_name VARCHAR(255) NOT NULL,
+				user_id BIGINT NOT NULL UNIQUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS reports (
-			id INT AUTO_INCREMENT PRIMARY KEY,
-			user_id BIGINT NULL,
-			text TEXT NOT NULL,
-			active BOOLEAN DEFAULT TRUE,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-		) ENGINE=InnoDB;`,
+				id INT AUTO_INCREMENT PRIMARY KEY,
+				user_id BIGINT NULL,
+				text TEXT NOT NULL,
+				active BOOLEAN DEFAULT TRUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS blacklists (
-			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-			user_id BIGINT NOT NULL, 
-			reason TEXT NOT NULL, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-		) ENGINE=InnoDB;`,
+				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+				user_id BIGINT NOT NULL, 
+				reason TEXT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			) ENGINE=InnoDB;`,
 
 			`CREATE TABLE IF NOT EXISTS clans_members (
 			clan_id INT NOT NULL,
 			user_id BIGINT NOT NULL,
 			role VARCHAR(20) DEFAULT 'member',
 			joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (clan_id, user_id),
-			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+			PRIMARY KEY (clan_id, user_id)
 		) ENGINE=InnoDB;`,
 
-			`CREATE TABLE IF NOT EXISTS clans_blacklist (
-			clan_id INTEGER NOT NULL,
+		`CREATE TABLE IF NOT EXISTS clans_blacklist (
+			clan_id INT NOT NULL,
 			user_id BIGINT NOT NULL,
 			reason TEXT NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (clan_id, user_id),
-			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+			PRIMARY KEY (clan_id, user_id)
 		) ENGINE=InnoDB;`,
+
+		// Додаємо зв'язки для нових таблиць
+		`ALTER TABLE clans_members ADD FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE;`,
+		`ALTER TABLE clans_members ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;`,
+		`ALTER TABLE clans_blacklist ADD FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE;`,
+		`ALTER TABLE clans_blacklist ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;`,
+
+			// 2. Добавление связей через ALTER TABLE
+			`ALTER TABLE promocodes ADD FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;`,
+			`ALTER TABLE chats ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;`,
+			`ALTER TABLE users ADD FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL;`,
+			`ALTER TABLE reports ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;`,
+			`ALTER TABLE blacklists ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;`,
 		}
 	} else {
+		// SQLite версия
 		queries = []string{
 			`CREATE TABLE IF NOT EXISTS clans (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, 
-			name VARCHAR(255) NOT NULL, 
-			owner_id BIGINT NOT NULL,
-			invite_code VARCHAR(32) UNIQUE,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);`,
-
-			`CREATE TABLE IF NOT EXISTS promocodes (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, 
-			code VARCHAR(255) NOT NULL UNIQUE, 
-			amount INT NOT NULL, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);`,
+				id INTEGER PRIMARY KEY AUTOINCREMENT, 
+				name VARCHAR(255) NOT NULL, 
+				owner_id BIGINT NOT NULL,
+				invite_code VARCHAR(32) UNIQUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);`,
 
 			`CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY, 
-			username VARCHAR(255), 
-			balance INT DEFAULT 1000, 
-			promocode VARCHAR(32), 
-			floren_coin FLOAT DEFAULT 300000,
-			role VARCHAR(32) DEFAULT 'user',
-			first_name VARCHAR(32),
-			clan_id INTEGER, 
-			negative_reputation INT DEFAULT 0, 
-			positive_reputation INT DEFAULT 0, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE CASCADE,
-			FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE CASCADE
-		);`,
+				id BIGINT PRIMARY KEY, 
+				username VARCHAR(255), 
+				balance INT DEFAULT 1000, 
+				promocode VARCHAR(32), 
+				floren_coin FLOAT DEFAULT 300000,
+				role VARCHAR(32) DEFAULT 'user',
+				first_name VARCHAR(32),
+				clan_id INTEGER, 
+				negative_reputation INT DEFAULT 0, 
+				positive_reputation INT DEFAULT 0, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY(clan_id) REFERENCES clans(id) ON DELETE SET NULL
+			);`,
 
-			`CREATE TABLE IF NOT EXISTS reports (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			user_id BIGINT,
-			text TEXT NOT NULL,
-			active BOOLEAN DEFAULT 1,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-		);`,
+			`CREATE TABLE IF NOT EXISTS promocodes (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, 
+				code VARCHAR(255) NOT NULL UNIQUE, 
+				owner_id BIGINT NOT NULL UNIQUE,
+				amount INT NOT NULL, 
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 
-			`CREATE TABLE IF NOT EXISTS blacklists (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, 
-			user_id BIGINT NOT NULL, 
-			reason TEXT NOT NULL, 
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-		);`,
+			`CREATE TABLE IF NOT EXISTS chats (
+				id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+				chat_name VARCHAR(255) NOT NULL,
+				user_id BIGINT NOT NULL UNIQUE,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 
 			`CREATE TABLE IF NOT EXISTS clans_members (
-			clan_id INTEGER NOT NULL,
-			user_id BIGINT NOT NULL,
-			role VARCHAR(20) DEFAULT 'member',
-			joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (clan_id, user_id),
-			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-		);`,
+				clan_id INTEGER NOT NULL,
+				user_id BIGINT NOT NULL,
+				role VARCHAR(20) DEFAULT 'member',
+				joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 
 			`CREATE TABLE IF NOT EXISTS clans_blacklist (
-			clan_id INTEGER NOT NULL,
-			user_id BIGINT NOT NULL,
-			reason TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (clan_id, user_id),
-			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-		);`,
+				clan_id INTEGER NOT NULL,
+				user_id BIGINT NOT NULL,
+				reason TEXT NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (clan_id, user_id),
+				FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);`,
 		}
-
 	}
+
 	for _, query := range queries {
 		Debug("Выполнение SQL: %s", query)
 		if _, err = DB.Exec(query); err != nil {

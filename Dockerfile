@@ -34,4 +34,4 @@ COPY --from=builder /app/bot .
 # COPY static/ ./static/
 
 # Запускаємо додаток
-CMD ["./bot --skip"]
+CMD ["./bot", "--skip"]
