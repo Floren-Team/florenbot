@@ -161,6 +161,9 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	case "newsletter":
 		admin_handlers.HandleNewsLetter(bot, message)
+	
+	case "chat":
+		handlers.HandleChat(bot, message)
 
 	case "promo":
 

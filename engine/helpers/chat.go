@@ -15,13 +15,13 @@ func CreateChat(chat structs.Chat) error {
 	return nil
 }
 
-func GetChatById(id int64) structs.Chat {
+func GetChatById(id int64) (*structs.Chat, error) {
 	var chat structs.Chat
 	err := engine.DB.QueryRow("SELECT id, name, user_id FROM chat WHERE id = ?", id).Scan(&chat.Id, &chat.Name, &chat.UserId)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	return chat
+	return &chat, nil
 }
 
 func GetChats() []structs.Chat {
@@ -50,3 +50,4 @@ func DeleteChat(id int64) error {
 	}
 	return nil
 }
+
