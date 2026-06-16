@@ -17,6 +17,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	"runtime"
+	_ "time"
 )
 
 func main() {
@@ -27,9 +28,9 @@ func main() {
 
 	log.Printf("ОС: %s, Архитектура: %s", runtime.GOOS, runtime.GOARCH)
 
-	// Определить Linux / Windows
+	time.Sleep(4 * time.Second)
 
-
+	// Проверка хеша
 	if err := helpers.CheckHashAndGpg(); err != nil {
 		panic(err)
     }
