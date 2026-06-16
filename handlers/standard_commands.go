@@ -138,10 +138,20 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		status_text = "Неизвестно"
 	}
 
+	switch userProfile.Role {
+	case "admin":
+		userProfile.Role = "Администратор"
+	case "moderator":
+		userProfile.Role = "Модератор"
+	default:
+		userProfile.Role = "Пользователь"
+	}
+
 	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
 		"└── **Баланс:** `%.2f` рублей 🪙\n"+
 		"└── **Floren Coin:** `%.2f` монет 🪙\n"+
 		"└── **Негативных репутации:** `%d`\n"+
+		"└── **Роль:** `%s`\n"+
 		"└── **Позитивных репутации:** `%d`\n\n"+
 		"└── **Всего репутации:** `%d`\n"+
 		"└── **Статус:** %s\n"+
@@ -151,6 +161,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		userProfile.Balance,
 		userProfile.FlorenCoin,
 		userProfile.NegativeReputation,
+		userProfile.Role,
 		userProfile.PositiveReputation,
 		total_reputation,
 		status_text,
