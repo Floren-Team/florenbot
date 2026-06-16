@@ -47,9 +47,19 @@ func CheckHashAndGpg() error {
 		case "amd64", "386", "arm64":
 			// Проверка цифровой подписи GPG для Linux
 			ascFilePath := exePath + ".asc"
-			if err := VerifyASC(ascFilePath, exePath); err != nil {
-				return err
-			}
+			// Проверяем, существует ли файл .asc перед проверкой
+            if _, err := os.Stat(ascFilePath); err == nil {
+                // Файл есть, выполняем проверку
+                if err := VerifyASC(ascFilePath, exePath); err != nil {
+                    return err // Если файл есть, но подпись неверна — возвращаем ошибку
+                }
+            } else if os.IsNotExist(err) {
+                return errors.New("Файл подписи (.asc) не найден! Программа не может быть дальше работать. " +
+                    "Рекомендую установить из наших источников: https://github.com/Floren-Team/florenbot/releases")
+            } else {
+                // Ошибка доступа к файлу (например, нет прав)
+                return err
+            }
 			return nil
 		default:
 			return errors.New("Данная архитектура не поддерживается")
