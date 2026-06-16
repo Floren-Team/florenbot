@@ -8,18 +8,33 @@ import (
 	"syscall"
 	"time"
 
+	helpers "florenbot/helpers"
+
 	"florenbot/bones"
 	"florenbot/engine"
 	"florenbot/handlers"
 	admin_handlers "florenbot/handlers/admin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
+	"runtime"
 )
 
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️ Файл .env не найден")
 	}
+
+
+	log.Printf("ОС: %s, Архитектура: %s", runtime.GOOS, runtime.GOARCH)
+
+	// Определить Linux / Windows
+
+
+	if err := helpers.CheckHashAndGpg(); err != nil {
+		panic(err)
+    }
+
+
 
 	engine.InitDB()
 	engine.InitCache()
