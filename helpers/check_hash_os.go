@@ -2,70 +2,75 @@ package helpers
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
 func CheckHashAndGpg() error {
-
 	exePath, err := os.Executable()
 	if err != nil {
-		return err
+		return fmt.Errorf("помилка визначення шляху до файлу: %w", err)
 	}
+
+	// Нормалізація для Windows
+	if runtime.GOOS == "windows" && filepath.Ext(exePath) != ".exe" {
+		exePath += ".exe"
+	}
+
+	fmt.Printf("[DEBUG] ОС: %s, Архітектура: %s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Printf("[DEBUG] Робочий шлях до бінарника: %s\n", exePath)
 
 	switch runtime.GOOS {
 	case "windows":
-		switch runtime.GOARCH {
-		case "amd64", "386":
-			// Проверяем SHA-512
-			hash512Path := exePath + ".sha512"
-			expectedHash512, err := ReadHashFromFile(hash512Path)
-			if err == nil {
-				GetFileHashAndVerify(exePath, "sha512", expectedHash512)
-			}
+		hash512Path := exePath + ".sha512"
+		hash256Path := exePath + ".sha256"
 
-			// Проверяем SHA-256
-			hash256Path := exePath + ".sha256"
-			expectedHash256, err := ReadHashFromFile(hash256Path)
-			if err == nil {
-				GetFileHashAndVerify(exePath, "sha256", expectedHash256)
-			}
+		exists512 := fileExists(hash512Path)
+		exists256 := fileExists(hash256Path)
 
-			// Если оба файла отсутствуют, возвращаем ошибку
-			if _, err := os.Stat(hash512Path); os.IsNotExist(err) {
-				if _, err := os.Stat(hash256Path); os.IsNotExist(err) {
-					return errors.New("Файлы хешей (.sha512 или .sha256) не найдены")
-				}
-			}
-			return nil
-		default:
-			return errors.New("Данная архитектура не поддерживается")
+		if !exists512 && !exists256 {
+			return errors.New("Критична помилка: файли хешів (.sha512 або .sha256) не знайдені поруч з .exe")
 		}
+
+		// Перевірка SHA512
+		if exists512 {
+			expectedHash, err := ReadHashFromFile(hash512Path)
+			if err != nil {
+				return fmt.Errorf("помилка зчитування SHA512: %w", err)
+			}
+			// ВИКЛИК БЕЗ ПЕРЕВІРКИ ПОМИЛКИ, оскільки функція сама робить panic
+			GetFileHashAndVerify(exePath, "sha512", expectedHash)
+		}
+
+		// Перевірка SHA256
+		if exists256 {
+			expectedHash, err := ReadHashFromFile(hash256Path)
+			if err != nil {
+				return fmt.Errorf("помилка зчитування SHA256: %w", err)
+			}
+			// ВИКЛИК БЕЗ ПЕРЕВІРКИ ПОМИЛКИ
+			GetFileHashAndVerify(exePath, "sha256", expectedHash)
+		}
+		return nil
 
 	case "linux":
-		switch runtime.GOARCH {
-		case "amd64", "386", "arm64":
-			// Проверка цифровой подписи GPG для Linux
-			ascFilePath := exePath + ".asc"
-			// Проверяем, существует ли файл .asc перед проверкой
-            if _, err := os.Stat(ascFilePath); err == nil {
-                // Файл есть, выполняем проверку
-                if err := VerifyASC(ascFilePath, exePath); err != nil {
-                    return err // Если файл есть, но подпись неверна — возвращаем ошибку
-                }
-            } else if os.IsNotExist(err) {
-                return errors.New("Файл подписи (.asc) не найден! Программа не может быть дальше работать. " +
-                    "Рекомендую установить из наших источников: https://github.com/Floren-Team/florenbot/releases")
-            } else {
-                // Ошибка доступа к файлу (например, нет прав)
-                return err
-            }
-			return nil
-		default:
-			return errors.New("Данная архитектура не поддерживается")
+		ascFilePath := exePath + ".asc"
+		if !fileExists(ascFilePath) {
+			return fmt.Errorf("файл підпису (.asc) не знайдено: %s", ascFilePath)
 		}
+		return VerifyASC(ascFilePath, exePath)
 
 	default:
-		return errors.New("Данная ОС не поддерживается")
+		return fmt.Errorf("ОС %s не підтримується", runtime.GOOS)
 	}
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
