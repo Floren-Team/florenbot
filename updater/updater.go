@@ -19,7 +19,7 @@ const (
 	GitHubOwner     = "Floren-Team"
 	GitHubRepo      = "florenbot"
 	VersionFile     = "version.txt"
-	CURRENT_VERSION = "v5.2"
+	CURRENT_VERSION = "v5.3"
 )
 
 type GitHubRelease struct {
