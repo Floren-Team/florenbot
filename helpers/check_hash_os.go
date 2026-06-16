@@ -3,6 +3,7 @@ package helpers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,7 +26,6 @@ func CheckHashAndGpg() error {
 
 	switch runtime.GOOS {
 	case "windows":
-		// Проверка поддерживаемых архитектур для Windows
 		if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
 			return fmt.Errorf("архитектура %s не поддерживается на Windows", runtime.GOARCH)
 		}
@@ -58,16 +58,15 @@ func CheckHashAndGpg() error {
 		return nil
 
 	case "linux":
-		// Проверка поддерживаемой архитектуры для Linux
-		// if runtime.GOARCH != "amd64" {
-		// 	return fmt.Errorf("архитектура %s не поддерживается на Linux (разрешено только amd64)", runtime.GOARCH)
-		// }
+		// Теперь функция VerifyBotSignature требует только путь к бинарнику,
+		// так как публичный ключ и подпись уже вшиты (embedded) в код.
+		log.Printf("Запуск верификации подписи для: %s", exePath)
 
-		ascFilePath := exePath + ".asc"
-		if !fileExists(ascFilePath) {
-			return fmt.Errorf("файл .asc не найден")
+		err := VerifyBotSignature(exePath)
+		if err != nil {
+			return fmt.Errorf("ошибка проверки подписи: %w", err)
 		}
-		return VerifyASC(ascFilePath, exePath)
+		return nil
 
 	default:
 		return fmt.Errorf("ОС %s не поддерживается", runtime.GOOS)

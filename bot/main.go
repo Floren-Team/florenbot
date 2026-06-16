@@ -25,7 +25,6 @@ func main() {
 		log.Println("⚠️ Файл .env не найден")
 	}
 
-
 	log.Printf("ОС: %s, Архитектура: %s", runtime.GOOS, runtime.GOARCH)
 
 	time.Sleep(4 * time.Second)
@@ -33,9 +32,7 @@ func main() {
 	// Проверка хеша
 	if err := helpers.CheckHashAndGpg(); err != nil {
 		panic(err)
-    }
-
-
+	}
 
 	engine.InitDB()
 	engine.InitCache()

@@ -1,11 +1,11 @@
 package admin
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"strings"
-	std_helpers "florenbot/helpers"
-	"log"
 	helpers "florenbot/engine/helpers"
+	std_helpers "florenbot/helpers"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
+	"strings"
 )
 
 func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -32,7 +32,6 @@ func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	debug_type := std_helpers.GetEnvBool("DEBUG", false)
 	text := strings.Join(parts[1:], " ")
 
-
 	switch chat_type {
 	case "private":
 		{
@@ -41,7 +40,7 @@ func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения пользователей: %v", err)
-				}	
+				}
 				msg := tgbotapi.NewMessage(message.Chat.ID, "Ошибка получения пользователей")
 
 				if _, err := bot.Send(msg); err != nil {

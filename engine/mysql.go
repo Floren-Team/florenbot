@@ -68,7 +68,7 @@ func InitDB() {
 	var queries []string
 	if dbMode == "mysql" {
 		queries = []string{
-		`CREATE TABLE IF NOT EXISTS clans (
+			`CREATE TABLE IF NOT EXISTS clans (
 			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 			name VARCHAR(255) NOT NULL, 
 			owner_id BIGINT NOT NULL, 
@@ -77,7 +77,7 @@ func InitDB() {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		) ENGINE=InnoDB;`,
 
-		`CREATE TABLE IF NOT EXISTS users (
+			`CREATE TABLE IF NOT EXISTS users (
 			id BIGINT PRIMARY KEY, 
 			username VARCHAR(255), 
 			balance FLOAT DEFAULT 1000,
@@ -92,7 +92,7 @@ func InitDB() {
 			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
 
-		`CREATE TABLE IF NOT EXISTS promocodes (
+			`CREATE TABLE IF NOT EXISTS promocodes (
 			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 			code VARCHAR(255) NOT NULL UNIQUE, 
 			owner_id BIGINT NOT NULL UNIQUE,
@@ -101,9 +101,9 @@ func InitDB() {
 			FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
 
-		`ALTER TABLE users ADD FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL ON UPDATE CASCADE;`,
+			`ALTER TABLE users ADD FOREIGN KEY (promocode) REFERENCES promocodes(code) ON DELETE SET NULL ON UPDATE CASCADE;`,
 
-		`CREATE TABLE IF NOT EXISTS reports (
+			`CREATE TABLE IF NOT EXISTS reports (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			user_id BIGINT NULL,
 			text TEXT NOT NULL,
@@ -112,7 +112,7 @@ func InitDB() {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
 
-		`CREATE TABLE IF NOT EXISTS blacklists (
+			`CREATE TABLE IF NOT EXISTS blacklists (
 			id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 			user_id BIGINT NOT NULL, 
 			reason TEXT NOT NULL, 
@@ -120,7 +120,7 @@ func InitDB() {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
 
-		`CREATE TABLE IF NOT EXISTS clans_members (
+			`CREATE TABLE IF NOT EXISTS clans_members (
 			clan_id INT NOT NULL,
 			user_id BIGINT NOT NULL,
 			role VARCHAR(20) DEFAULT 'member',
@@ -130,7 +130,7 @@ func InitDB() {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
 
-		`CREATE TABLE IF NOT EXISTS clans_blacklist (
+			`CREATE TABLE IF NOT EXISTS clans_blacklist (
 			clan_id INTEGER NOT NULL,
 			user_id BIGINT NOT NULL,
 			reason TEXT NOT NULL,
@@ -139,10 +139,10 @@ func InitDB() {
 			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE ON UPDATE CASCADE,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 		) ENGINE=InnoDB;`,
-	}
+		}
 	} else {
 		queries = []string{
-		`CREATE TABLE IF NOT EXISTS clans (
+			`CREATE TABLE IF NOT EXISTS clans (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, 
 			name VARCHAR(255) NOT NULL, 
 			owner_id BIGINT NOT NULL,
@@ -150,14 +150,14 @@ func InitDB() {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS promocodes (
+			`CREATE TABLE IF NOT EXISTS promocodes (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, 
 			code VARCHAR(255) NOT NULL UNIQUE, 
 			amount INT NOT NULL, 
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS users (
+			`CREATE TABLE IF NOT EXISTS users (
 			id BIGINT PRIMARY KEY, 
 			username VARCHAR(255), 
 			balance INT DEFAULT 1000, 
@@ -173,7 +173,7 @@ func InitDB() {
 			FOREIGN KEY(promocode) REFERENCES promocodes(code) ON DELETE CASCADE
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS reports (
+			`CREATE TABLE IF NOT EXISTS reports (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id BIGINT,
 			text TEXT NOT NULL,
@@ -182,7 +182,7 @@ func InitDB() {
 			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS blacklists (
+			`CREATE TABLE IF NOT EXISTS blacklists (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, 
 			user_id BIGINT NOT NULL, 
 			reason TEXT NOT NULL, 
@@ -190,7 +190,7 @@ func InitDB() {
 			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS clans_members (
+			`CREATE TABLE IF NOT EXISTS clans_members (
 			clan_id INTEGER NOT NULL,
 			user_id BIGINT NOT NULL,
 			role VARCHAR(20) DEFAULT 'member',
@@ -200,7 +200,7 @@ func InitDB() {
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		);`,
 
-		`CREATE TABLE IF NOT EXISTS clans_blacklist (
+			`CREATE TABLE IF NOT EXISTS clans_blacklist (
 			clan_id INTEGER NOT NULL,
 			user_id BIGINT NOT NULL,
 			reason TEXT NOT NULL,
@@ -209,8 +209,8 @@ func InitDB() {
 			FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 		);`,
-	}
-		
+		}
+
 	}
 	for _, query := range queries {
 		Debug("Выполнение SQL: %s", query)

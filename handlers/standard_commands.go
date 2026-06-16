@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"fmt"
-	"log"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	consts "florenbot/consts"
 	helpers "florenbot/engine/helpers"
+	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 )
 
 // HandleStart обрабатывает команду /start

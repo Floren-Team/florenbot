@@ -7,8 +7,6 @@ import (
 	"log"
 )
 
-
-
 func UpdateNetagiveReputation(user_id uint64, reputation int) error {
 	debug_type := helpers.GetEnvBool("DEBUG", false)
 	err := engine.DB.QueryRow("UPDATE users SET negative_reputation = ? WHERE id = ?", reputation, user_id).Err()

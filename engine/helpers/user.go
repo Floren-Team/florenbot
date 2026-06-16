@@ -21,14 +21,14 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 	if err == nil && len(data) > 0 {
 		user.Id = tg_id
 		user.Username = data["username"]
-		
+
 		f, _ := strconv.ParseFloat(data["balance"], 64)
 		user.Balance = float32(f)
 
 		user.Role = data["role"]
-		
+
 		user.PromoCode = data["promocode"] // Тепер це просто рядок
-		
+
 		// Обробка вказівника ClanId
 		if val, ok := data["clan_id"]; ok && val != "" && val != "0" {
 			clanID, _ := strconv.ParseInt(val, 10, 64)
@@ -36,10 +36,10 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 		} else {
 			user.ClanId = nil // Вказівник nil означає відсутність значення
 		}
-		
+
 		user.NegativeReputation, _ = strconv.Atoi(data["negative_reputation"])
 		user.PositiveReputation, _ = strconv.Atoi(data["positive_reputation"])
-		
+
 		return user, nil
 	}
 
@@ -52,18 +52,26 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 
 	err = engine.DB.QueryRow(query, tg_id).Scan(
 		&user.Id, &user.Username, &user.Balance, &promoCode,
-		&clanID, &user.NegativeReputation, &user.PositiveReputation, 
+		&clanID, &user.NegativeReputation, &user.PositiveReputation,
 		&role,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows { return structs.User{}, nil }
+		if err == sql.ErrNoRows {
+			return structs.User{}, nil
+		}
 		return structs.User{}, err
 	}
 
 	// Перенесення значень з Null-типів БД у структуру
-	if promoCode.Valid { user.PromoCode = promoCode.String }
-	if clanID.Valid { user.ClanId = &clanID.Int64 }
-	if role.Valid { user.Role = role.String }
+	if promoCode.Valid {
+		user.PromoCode = promoCode.String
+	}
+	if clanID.Valid {
+		user.ClanId = &clanID.Int64
+	}
+	if role.Valid {
+		user.Role = role.String
+	}
 
 	// 3. Запис у Redis
 	vals := map[string]interface{}{
@@ -89,7 +97,6 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 	return user, nil
 }
 
-
 func GetRole(user_id uint64) (string, error) {
 
 	user, err := GetUserByID(user_id)
@@ -100,7 +107,6 @@ func GetRole(user_id uint64) (string, error) {
 
 	return user.Role, nil
 }
-
 
 // CreateUser создает пользователя и обновляет кеш
 func CreateUser(user_id uint64, username string, firstName string) (structs.User, error) {

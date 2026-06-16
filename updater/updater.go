@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	GitHubOwner   = "Floren-Team"
-	GitHubRepo    = "florenbot"
-	VersionFile   = "version.txt"
-	UserAgent     = "FlorenBot-Updater/2.0"
-	LATEST_VERSION  = "v5.6"
+	GitHubOwner    = "Floren-Team"
+	GitHubRepo     = "florenbot"
+	VersionFile    = "version.txt"
+	UserAgent      = "FlorenBot-Updater/2.0"
+	LATEST_VERSION = "v5.6"
 )
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 
 func checkAndUpdate() bool {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", GitHubOwner, GitHubRepo)
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Printf("[ERROR] Network error: %v", err)
@@ -69,14 +69,11 @@ func checkAndUpdate() bool {
 	localVerData, err := os.ReadFile(VersionFile)
 
 	if err != nil {
-        log.Printf("[INFO] Version file not found, assuming %s", LATEST_VERSION)
-        currentVer = LATEST_VERSION
-    } else {
-        currentVer = strings.TrimSpace(string(localVerData))
-    }
-
-
-
+		log.Printf("[INFO] Version file not found, assuming %s", LATEST_VERSION)
+		currentVer = LATEST_VERSION
+	} else {
+		currentVer = strings.TrimSpace(string(localVerData))
+	}
 
 	log.Printf("[DEBUG] Local version: '%s', GitHub latest: '%s'", currentVer, release.TagName)
 
@@ -106,7 +103,7 @@ func checkAndUpdate() bool {
 
 func performUpdate(url, filename string) bool {
 	tmpPath := filepath.Join(os.TempDir(), filename)
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Printf("[ERROR] Download failed: %v", err)
@@ -136,7 +133,7 @@ func performUpdate(url, filename string) bool {
 		log.Printf("[ERROR] Extraction error: %v", err)
 		return false
 	}
-	
+
 	return true
 }
 
@@ -147,12 +144,16 @@ func untar(path, dest string) error {
 	tr := tar.NewReader(gzr)
 	for {
 		header, err := tr.Next()
-		if err == io.EOF { break }
-		if header.FileInfo().IsDir() { continue }
-		
+		if err == io.EOF {
+			break
+		}
+		if header.FileInfo().IsDir() {
+			continue
+		}
+
 		target := filepath.Join(dest, header.Name)
 		log.Printf("[DEBUG] Extracting: %s", header.Name)
-		
+
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		io.Copy(outFile, tr)
 		outFile.Close()
@@ -164,14 +165,17 @@ func unzip(path, dest string) error {
 	r, _ := zip.OpenReader(path)
 	defer r.Close()
 	for _, f := range r.File {
-		if f.FileInfo().IsDir() { continue }
+		if f.FileInfo().IsDir() {
+			continue
+		}
 		target := filepath.Join(dest, f.Name)
 		log.Printf("[DEBUG] Extracting: %s", f.Name)
-		
+
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		rc, _ := f.Open()
 		io.Copy(outFile, rc)
-		outFile.Close(); rc.Close()
+		outFile.Close()
+		rc.Close()
 	}
 	return nil
 }

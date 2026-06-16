@@ -9,10 +9,16 @@ db
 ***REMOVED***
 .gitignore
 ***REMOVED***
-Dockerifle
+Dockerfile
 CONTRIBUTING.md
 CHANGELOG.md
 ***REMOVED***
 ***REMOVED***
 .git
 .dockerignore
+florenbot-cert
+bat
+*.txt
+*.ini
+Makefile
+***REMOVED***

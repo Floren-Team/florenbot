@@ -3,20 +3,19 @@ package handlers
 import (
 	"florenbot/engine"
 	helpers "florenbot/engine/helpers"
+	std_helpers "florenbot/helpers"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strconv"
 	"strings"
 	"time"
-	std_helpers "florenbot/helpers"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Promocode struct {
 	Code   string
 	Amount int
 }
-
 
 func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()

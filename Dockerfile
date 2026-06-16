@@ -13,14 +13,15 @@ RUN go mod download
 # Копіюємо решту вихідного коду
 COPY . .
 
+
 # Збірка бінарника
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o bot .
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bot ./bot
 
 # ЕТАП 2: Фінальний образ (Run)
 FROM alpine:latest
 
 # Встановлюємо сертифікати для HTTPS (Telegram API)
-RUN apk --no-cache add ca-certificates bash
+RUN apk --no-cache add ca-certificates bash gnupg
 
 # Встановлюємо робочу директорію
 WORKDIR /app

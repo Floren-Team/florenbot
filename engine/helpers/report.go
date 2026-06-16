@@ -1,8 +1,8 @@
 package helpers
 
 import (
-	"florenbot/engine/structs"
 	engine "florenbot/engine"
+	"florenbot/engine/structs"
 	"log"
 )
 

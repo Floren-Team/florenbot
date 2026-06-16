@@ -34,3 +34,6 @@ florenbot-cert
 generatesum.sh
 summ/*
 *.bak
+*.txt
+for_docker
+assets

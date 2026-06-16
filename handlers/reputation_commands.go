@@ -1,14 +1,14 @@
 package handlers
 
 import (
+	helpers "florenbot/engine/helpers"
+	std_helpers "florenbot/helpers"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"math/rand"
 	"strconv"
 	"strings"
-	std_helpers "florenbot/helpers"
-	helpers "florenbot/engine/helpers"
 )
 
 func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {

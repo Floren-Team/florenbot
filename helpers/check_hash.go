@@ -1,16 +1,60 @@
 package helpers
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
+	_ "embed"
 	"encoding/hex"
+	"fmt"
 	"hash"
 	"io"
 	"log"
 	"os"
 	"strings"
-	"os/exec"
+
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
 )
+
+//go:embed assets/publickey.asc
+var publicKeyContent []byte
+
+//go:embed assets/florenbot_linux_amd64.asc
+var signatureContent []byte
+
+// VerifyBotSignature теперь использует встроенные данные, а не системный GPG
+
+func VerifyBotSignature(binaryPath string) error {
+    // 1. Читаємо ключ (це у вас вже працює)
+    keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(publicKeyContent))
+    if err != nil {
+        return fmt.Errorf("помилка ключа: %w", err)
+    }
+
+    // 2. Відкриваємо бінарник
+    binaryFile, err := os.Open(binaryPath)
+    if err != nil {
+        return fmt.Errorf("помилка файлу: %w", err)
+    }
+    defer binaryFile.Close()
+
+    // 3. РОЗПАШОВУЄМО ARMOR підпису (перетворюємо текст на бінарний потік)
+    block, err := armor.Decode(bytes.NewReader(signatureContent))
+    if err != nil {
+        return fmt.Errorf("помилка декодування armor: %w", err)
+    }
+
+    // 4. Тепер передаємо цей бінарний потік у перевірку
+    _, err = openpgp.CheckDetachedSignature(keyring, binaryFile, block.Body, nil)
+    if err != nil {
+        return fmt.Errorf("помилка верифікації: %w", err)
+    }
+
+    log.Println("Підпис успішно перевірено.")
+    return nil
+}
+
 
 func GetFileHashAndVerify(filePath string, algo string, expectedHash string) {
 	f, err := os.Open(filePath)
@@ -32,27 +76,12 @@ func GetFileHashAndVerify(filePath string, algo string, expectedHash string) {
 
 	actualHash := hex.EncodeToString(hasher.Sum(nil))
 
-	// Порівняння хешів
 	if actualHash != expectedHash {
-		panic("Ошибка при проверки подписи! Программа не может быть дальше работать. " +
-			"Рекомендую установить из наших источников: https://github.com/Floren-Team/florenbot/releases")
+		panic("Критическая ошибка: хеш-сумма не совпадает! Программа была изменена. " +
+			"Безопасный источник: https://github.com/Floren-Team/florenbot/releases")
 	}
 
-	log.Println("Программа успешно проверена.")
-}
-
-func VerifyASC(signatureFile string, targetFile string) error {
-	cmd := exec.Command("gpg", "--verify", signatureFile, targetFile)
-	
-	// Виводимо вивід команди (stdout/stderr)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		panic("Ошибка при проверки подписи! Программа не может быть дальше работать. Рекомендую установить из наших источников: https://github.com/Floren-Team/florenbot/releases")
-	}
-	
-	log.Println("Подпись успешно проверена:")
-	log.Println(string(output))
-	return nil
+	log.Println("Хеш-сумма успешно проверена.")
 }
 
 func ReadHashFromFile(filePath string) (string, error) {
@@ -60,6 +89,5 @@ func ReadHashFromFile(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Очищаємо від переносів рядків та зайвих пробілів
 	return strings.TrimSpace(string(content)), nil
 }
