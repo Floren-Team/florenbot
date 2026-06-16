@@ -59,9 +59,9 @@ func CheckHashAndGpg() error {
 
 	case "linux":
 		// Проверка поддерживаемой архитектуры для Linux
-		if runtime.GOARCH != "amd64" {
-			return fmt.Errorf("архитектура %s не поддерживается на Linux (разрешено только amd64)", runtime.GOARCH)
-		}
+		// if runtime.GOARCH != "amd64" {
+		// 	return fmt.Errorf("архитектура %s не поддерживается на Linux (разрешено только amd64)", runtime.GOARCH)
+		// }
 
 		ascFilePath := exePath + ".asc"
 		if !fileExists(ascFilePath) {
