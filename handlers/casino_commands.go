@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"florenbot/engine"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	helpers "florenbot/engine/helpers"
+	cache "florenbot/engine/cache"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -46,7 +47,7 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	user_id := uint64(message.From.ID)
 
-	balance, err := engine.GetBalance(user_id, message.From.UserName)
+	balance, err := cache.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		if debug_type {
 			log.Printf("Ошибка получения баланса: %v", err)
@@ -84,21 +85,33 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if res1 == res2 && res2 == res3 {
 		winAmount := bet * 5
-		if err := engine.ChangeBalance(user_id, float64(winAmount)); err != nil {
+		if err := cache.ChangeBalance(user_id, float64(winAmount)); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			return
 		}
 		resultStr += fmt.Sprintf("🎉 ДЖЕКПОТ! Вы выиграли %d монет!", winAmount)
 	} else if res1 == res2 || res2 == res3 || res1 == res3 {
 		winAmount := bet * 1 // Возврат ставки + выигрыш x2 чистыми
-		if err := engine.ChangeBalance(user_id, float64(winAmount)); err != nil {
+		if err := cache.ChangeBalance(user_id, float64(winAmount)); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
+			return
+		}
+		err := helpers.AddUserToWins(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
 			return
 		}
 		resultStr += fmt.Sprintf("💵 Победа! Вы выиграли %d монет!", bet*2)
 	} else {
-		if err := engine.ChangeBalance(user_id, float64(-bet)); err != nil {
+		if err := cache.ChangeBalance(user_id, float64(-bet)); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
+			return
+		}
+		err := helpers.AddUserToLosses(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
 			return
 		}
 		resultStr += fmt.Sprintf("📉 Проигрыш. Вы потеряли %d монет.", bet)
@@ -137,7 +150,7 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	balance, err := engine.GetBalance(user_id, message.From.UserName)
+	balance, err := cache.GetBalance(user_id, message.From.UserName)
 	if err != nil {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка авторизации игрового профиля.")
 		msg.ReplyToMessageID = message.MessageID
@@ -180,14 +193,27 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			multiplier = 35
 		}
 		winAmount := bet * multiplier
-		if err := engine.ChangeBalance(user_id, float64(winAmount)); err != nil {
+		if err := cache.ChangeBalance(user_id, float64(winAmount)); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
+			return
+		}
+
+		err := helpers.AddUserToWins(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
 			return
 		}
 		output += fmt.Sprintf("🎉 Вы угадали! Выигрыш: +%d монет.", winAmount+bet)
 	} else {
-		if err := engine.ChangeBalance(user_id, float64(-bet)); err != nil {
+		if err := cache.ChangeBalance(user_id, float64(-bet)); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
+			return
+		}
+		err := helpers.AddUserToLosses(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
 			return
 		}
 		output += fmt.Sprintf("📉 Не повезло. Ставка потеряна: -%d монет.", bet)

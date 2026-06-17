@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"database/sql"
-	"florenbot/engine"
+	cache "florenbot/engine/cache"
 	helpers "florenbot/engine/helpers"
 	helper "florenbot/helpers"
 	"fmt"
@@ -83,7 +83,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			user_id := uint64(message.From.ID)
-			balance, err := engine.GetBalance(user_id, message.From.UserName)
+			balance, err := cache.GetBalance(user_id, message.From.UserName)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка получения баланса: %v", err)

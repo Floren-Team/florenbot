@@ -1,12 +1,12 @@
 package helpers
 
 import (
+	"log"
+	engine "florenbot/engine/mysql"
+	"florenbot/engine/structs"
 	"database/sql"
 	"errors"
-	"florenbot/engine"
-	"florenbot/engine/structs"
-	"florenbot/helpers"
-	"log"
+	helpers "florenbot/helpers"
 )
 
 func CreateClan(name string, owner_name string, owner_id uint64) error {

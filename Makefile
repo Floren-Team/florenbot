@@ -15,6 +15,10 @@ build:
 run:
 	go run ./bot
 
+
+run-skip:
+	go run ./bot -skip
+	
 vet:
 	go vet ./...
 

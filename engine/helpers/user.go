@@ -6,8 +6,8 @@ import (
 	"log"
 	"strconv"
 	"time"
-
-	engine "florenbot/engine"
+	engine "florenbot/engine/mysql"
+	cache "florenbot/engine/cache"
 	"florenbot/engine/structs"
 )
 
@@ -16,8 +16,7 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 	var user structs.User
 	key := fmt.Sprintf("user:%d", tg_id)
 
-	// 1. Читання з Redis
-	data, err := engine.HGetAll(key)
+	data, err := cache.HGetAll(key)
 	if err == nil && len(data) > 0 {
 		user.Id = tg_id
 		user.Username = data["username"]
@@ -26,15 +25,17 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 		user.Balance = float32(f)
 
 		user.Role = data["role"]
+		user.PromoCode = data["promocode"]
 
-		user.PromoCode = data["promocode"] // Тепер це просто рядок
+		user.Losses, _ = strconv.Atoi(data["losses"])
+		user.Wins, _ = strconv.Atoi(data["wins"])
+		if e, err := strconv.ParseFloat(data["euro"], 64); err == nil {
+			user.Euro = float32(e)
+		}
 
-		// Обробка вказівника ClanId
 		if val, ok := data["clan_id"]; ok && val != "" && val != "0" {
 			clanID, _ := strconv.ParseInt(val, 10, 64)
-			user.ClanId = &clanID // Присвоюємо адресу змінної (вказівник)
-		} else {
-			user.ClanId = nil // Вказівник nil означає відсутність значення
+			user.ClanId = &clanID
 		}
 
 		user.NegativeReputation, _ = strconv.Atoi(data["negative_reputation"])
@@ -43,17 +44,18 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 		return user, nil
 	}
 
-	// 2. Читання з БД (потрібні тимчасові змінні для сканування вказівників)
 	var clanID sql.NullInt64
 	var promoCode sql.NullString
 	var role sql.NullString
-	query := `SELECT id, username, balance, promocode, clan_id, negative_reputation, positive_reputation, role
+	
+	query := `SELECT id, username, balance, promocode, clan_id, negative_reputation, positive_reputation, role,
+              losses, wins, euro
               FROM users WHERE id = ?`
 
 	err = engine.DB.QueryRow(query, tg_id).Scan(
 		&user.Id, &user.Username, &user.Balance, &promoCode,
 		&clanID, &user.NegativeReputation, &user.PositiveReputation,
-		&role,
+		&role, &user.Losses, &user.Wins, &user.Euro,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -62,18 +64,11 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 		return structs.User{}, err
 	}
 
-	// Перенесення значень з Null-типів БД у структуру
-	if promoCode.Valid {
-		user.PromoCode = promoCode.String
-	}
-	if clanID.Valid {
-		user.ClanId = &clanID.Int64
-	}
-	if role.Valid {
-		user.Role = role.String
-	}
+	if promoCode.Valid { user.PromoCode = promoCode.String }
+	if clanID.Valid { user.ClanId = &clanID.Int64 }
+	if role.Valid { user.Role = role.String }
 
-	// 3. Запис у Redis
+	// 3. Запис у кеш
 	vals := map[string]interface{}{
 		"username":            user.Username,
 		"balance":             user.Balance,
@@ -82,19 +77,34 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 		"role":                "user",
 		"negative_reputation": user.NegativeReputation,
 		"positive_reputation": user.PositiveReputation,
+		"losses":              user.Losses,
+		"wins":                user.Wins,
+		"euro":                user.Euro,
 	}
-	if user.ClanId != nil {
-		vals["clan_id"] = *user.ClanId
-	}
+	if user.ClanId != nil { vals["clan_id"] = *user.ClanId }
+	if user.Role != "" { vals["role"] = user.Role }
 
-	if user.Role != "" {
-		vals["role"] = user.Role
-	}
-
-	_ = engine.HMSet(key, vals)
-	engine.Expire(key, 10*time.Minute)
+	_ = cache.HMSet(key, vals)
+	cache.Expire(key, 10*time.Minute)
 
 	return user, nil
+}
+
+func AddUserToLosses(user_id uint64) error {
+	_, err := engine.DB.Exec("UPDATE users SET losses = losses + 1 WHERE id = ?", user_id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddUserToWins(user_id uint64) error {
+	_, err := engine.DB.Exec("UPDATE users SET wins = wins + 1 WHERE id = ?", user_id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func GetRole(user_id uint64) (string, error) {

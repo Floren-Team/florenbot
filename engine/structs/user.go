@@ -11,4 +11,8 @@ type User struct {
 	NegativeReputation int     `json:"negative_reputation"`
 	PositiveReputation int     `json:"positive_reputation"`
 	Status             int     `json:"status"`
+	Euro				float32 `json:"euro"`
+	Wins				int		`json:"wins"`
+	Losses				int		`json:"losses"`
+
 }

@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"florenbot/engine"
+	helpers "florenbot/engine/helpers"
+	engine "florenbot/engine/cache"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -98,12 +99,24 @@ func HandleBones(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось изменить ваш баланс."))
 			return
 		}
+		err := helpers.AddUserToLosses(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
+			return
+		}
 		resultText += fmt.Sprintf(" **Победа!** Вы оказались удачливее бота и выиграли **%.2f монет**!", bet)
 	} else if playerValue < botValue {
 		// Игрок проиграл
 		if err := engine.ChangeBalance(user_id, -bet); err != nil {
 			log.Printf("Ошибка изменения баланса: %v", err)
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось изменить ваш баланс."))
+			return
+		}
+		err := helpers.AddUserToLosses(user_id)
+		if err != nil {
+			log.Printf("Ошибка изменения баланса: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка изменения рекордов :("))
 			return
 		}
 		resultText += fmt.Sprintf(" **Проигрыш.** Бот победил. Вы потеряли **%2.f монет**.", bet)

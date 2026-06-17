@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"database/sql"
-	engine "florenbot/engine"
+	engine "florenbot/engine/mysql"
 	"florenbot/engine/structs"
 	"log"
 )

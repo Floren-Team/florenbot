@@ -13,7 +13,8 @@ import (
 
 	"flag"
 	"florenbot/bones"
-	"florenbot/engine"
+	engine "florenbot/engine/mysql"
+	cache "florenbot/engine/cache"
 	"florenbot/handlers"
 	admin_handlers "florenbot/handlers/admin"
 	"runtime"
@@ -58,7 +59,7 @@ func main() {
 
 
 	engine.InitDB()
-	engine.InitCache()
+	cache.InitCache()
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -103,7 +104,7 @@ func main() {
 	<-quit
 	log.Println("🛑 Останавливаю бота...")
 	engine.CloseDB()
-	engine.ShutdownCache()
+	cache.ShutdownCache()
 }
 
 func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {

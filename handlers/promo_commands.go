@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"florenbot/engine"
+	engine "florenbot/engine/mysql"
+	cache "florenbot/engine/cache"
 	helpers "florenbot/engine/helpers"
 	std_helpers "florenbot/helpers"
 	"fmt"
@@ -36,7 +37,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "create":
 
 		user_id := uint64(message.From.ID)
-		balance, err := engine.GetBalance(user_id, message.From.UserName)
+		balance, err := cache.GetBalance(user_id, message.From.UserName)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения баланса: %v", err)
@@ -215,7 +216,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// 5. ОБНОВЛЕНИЕ БАЛАНСА С КЭШЕМ
 		// Сначала получаем текущий баланс (из кэша, если есть, или из БД)
-		currentBalance, err := engine.GetBalance(user_id, message.From.UserName)
+		currentBalance, err := cache.GetBalance(user_id, message.From.UserName)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения баланса: %v", err)
@@ -237,7 +238,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		// Обновляем КЭШ напрямую
 		key := fmt.Sprintf("user_%d_balance", user_id)
-		engine.SetCache(key, strconv.FormatFloat(newBalance, 'f', 2, 64), 24*time.Hour)
+		cache.SetCache(key, strconv.FormatFloat(newBalance, 'f', 2, 64), 24*time.Hour)
 
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод активирован! Вам начислено +%.2f $. Ваш баланс: %2.f", amount, newBalance)))
 

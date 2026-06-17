@@ -147,23 +147,35 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		userProfile.Role = "Пользователь"
 	}
 
+	total_wins := userProfile.Wins
+	total_losses := userProfile.Losses
+	total_games := total_wins + total_losses
+
 	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
 		"└── **Баланс:** `%.2f` $ 🪙\n"+
+		"└── **Евро:** `%.2f` € 🪙\n"+
 		"└── **Floren Coin:** `%.2f` монет 🪙\n"+
 		"└── **Негативных репутации:** `%d`\n"+
 		"└── **Роль:** `%s`\n"+
 		"└── **Позитивных репутации:** `%d`\n\n"+
 		"└── **Всего репутации:** `%d`\n"+
+		"└── **Проигранных игр:** `%d`\n"+
+		"└── **Выигранных игр:** `%d`\n"+
+		"└── **Всего игр:** `%d`\n"+
 		"└── **Статус:** %s\n"+
 
 		"Приятной вам игры в FlorenBot!",
 		message.From.FirstName,
 		userProfile.Balance,
+		userProfile.Euro,
 		userProfile.FlorenCoin,
 		userProfile.NegativeReputation,
 		userProfile.Role,
 		userProfile.PositiveReputation,
 		total_reputation,
+		userProfile.Losses,
+		userProfile.Wins,
+		total_games,
 		status_text,
 	)
 
