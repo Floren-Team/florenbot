@@ -6,14 +6,14 @@ tmp_binary
 binary
 cache
 db
-***REMOVED***
+LICENSE
 .gitignore
-***REMOVED***
+.env.example
 Dockerfile
 CONTRIBUTING.md
 CHANGELOG.md
-***REMOVED***
-***REMOVED***
+BUILDING.md
+README.md
 .git
 .dockerignore
 florenbot-cert
@@ -21,4 +21,4 @@ bat
 *.txt
 *.ini
 Makefile
-***REMOVED***
+docker-compose.yml

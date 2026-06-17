@@ -16,7 +16,7 @@ test.go
 data
 cache
 redis.go.bak
-***REMOVED***.bak
+main.go.bak
 publish.sh
 tmp_binary
 test*.sh

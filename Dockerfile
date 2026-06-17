@@ -7,7 +7,7 @@ RUN apk add --no-cache git gcc musl-dev
 WORKDIR /app
 
 # Копіюємо залежності окремо для ефективного кешування шарів
-COPY go.mod ***REMOVED*** ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Копіюємо решту вихідного коду

@@ -47,12 +47,12 @@ go build
 Для сборки проекта просто пропишите команду
 
 
-Но очень важно скопировать файл ***REMOVED*** как ***REMOVED***
+Но очень важно скопировать файл .env.docker.example как .env.example
 
 1. Скопируй файл
    
 ```bash
-  cp ***REMOVED*** .env.docker
+  cp .env.docker.example .env.docker
  ```
 
 2. Заполни его

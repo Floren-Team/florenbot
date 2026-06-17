@@ -2,13 +2,15 @@ package helpers
 
 import (
 	"database/sql"
+	cache "florenbot/engine/cache"
+	engine "florenbot/engine/mysql"
+	"florenbot/engine/structs"
+	"florenbot/helpers"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"time"
-	engine "florenbot/engine/mysql"
-	cache "florenbot/engine/cache"
-	"florenbot/engine/structs"
 )
 
 // GetUserByID получает данные пользователя из Redis Hash или базы данных
@@ -68,25 +70,36 @@ func GetUserByID(tg_id uint64) (structs.User, error) {
 	if clanID.Valid { user.ClanId = &clanID.Int64 }
 	if role.Valid { user.Role = role.String }
 
-	// 3. Запис у кеш
-	vals := map[string]interface{}{
-		"username":            user.Username,
-		"balance":             user.Balance,
-		"promocode":           user.PromoCode,
-		"clan_id":             0,
-		"role":                "user",
-		"negative_reputation": user.NegativeReputation,
-		"positive_reputation": user.PositiveReputation,
-		"losses":              user.Losses,
-		"wins":                user.Wins,
-		"euro":                user.Euro,
+
+	if helpers.GetEnv("CACHE_ENGINE", "local") == "redis" {
+
+		// 3. Запис у кеш
+		vals := map[string]interface{}{
+			"username":            user.Username,
+			"balance":             user.Balance,
+			"promocode":           user.PromoCode,
+			"clan_id":             0,
+			"role":                "user",
+			"negative_reputation": user.NegativeReputation,
+			"positive_reputation": user.PositiveReputation,
+			"losses":              user.Losses,
+			"wins":                user.Wins,
+			"euro":                user.Euro,
+		}
+		if user.ClanId != nil { vals["clan_id"] = *user.ClanId }
+		if user.Role != "" { vals["role"] = user.Role }
+
+		_ = cache.HMSet(key, vals)
+		cache.Expire(key, 10*time.Minute)
+
+		return user, nil
+	} else {
+		log.Print("[DEUBG] Используется локальный кеш")
+		if err := os.WriteFile("cache/user_"+strconv.FormatUint(user.Id, 10)+".json", []byte(fmt.Sprintf("%+v", user)), 0644); err != nil {
+			return structs.User{}, err
+		}
+
 	}
-	if user.ClanId != nil { vals["clan_id"] = *user.ClanId }
-	if user.Role != "" { vals["role"] = user.Role }
-
-	_ = cache.HMSet(key, vals)
-	cache.Expire(key, 10*time.Minute)
-
 	return user, nil
 }
 

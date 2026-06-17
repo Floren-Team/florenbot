@@ -24,11 +24,11 @@ else
     exit 1
 fi
 
-# Проверка наличия файла ***REMOVED***
-if [ -f "***REMOVED***" ]; then
-    echo -e "${GREEN}***REMOVED*** найден!${NC}"
+# Проверка наличия файла docker-compose.yml
+if [ -f "docker-compose.yml" ]; then
+    echo -e "${GREEN}docker-compose.yml найден!${NC}"
 else
-    echo -e "${RED}Error: ***REMOVED*** not found.${NC}" >&2
+    echo -e "${RED}Error: docker-compose.yml not found.${NC}" >&2
     exit 1
 fi
 
