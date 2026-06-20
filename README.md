@@ -73,9 +73,9 @@
 
 ## 3. Запустите БД
 
-   ```bash
-       docker compose up -d
-   ```
+```bash
+   docker compose up -d
+```
 
 ## 4. Запуск приложения
 
