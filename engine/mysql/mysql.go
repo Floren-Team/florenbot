@@ -75,7 +75,7 @@ func InitDB() {
 				id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 				name VARCHAR(255) NOT NULL, 
 				owner_id BIGINT NOT NULL, 
-				owner_name VARCHAR(32) NOT NULL, 
+				owner_name VARCHAR(70) NOT NULL, 
 				invite_code VARCHAR(32) NULL UNIQUE,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			) ENGINE=InnoDB;`,

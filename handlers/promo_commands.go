@@ -58,14 +58,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		_, err_2 := helpers.GetClanByID(user_id)
-		if err_2 != nil {
-			if debug_type {
-				log.Printf("Ошибка получения пользователя: %v", err_2)
-			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
-			return
-		}
+	
 
 		code := parts[1]
 		amount, err := strconv.Atoi(parts[2])
