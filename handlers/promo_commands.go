@@ -49,7 +49,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		log.Printf("Баланс пользователя: %.2f", balance)
 
 		if balance < 2000 {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 2000 рублей"))
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 2000 $"))
 			return
 		}
 
