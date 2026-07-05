@@ -34,6 +34,7 @@ services:
       - florenbot
   adminer:
     image: adminer
+    container_name: florenbot_adminer
     restart: always
     ports:
       - "8080:8080"
@@ -43,6 +44,7 @@ services:
 
   mariadb:
     image: mariadb:10.11
+    container_name: florenbot_mariadb
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
@@ -62,6 +64,7 @@ services:
       - florenbot
   redis:
     image: redis:alpine
+    container_name: florenbot_redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
