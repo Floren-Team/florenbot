@@ -9,6 +9,7 @@ import (
 	"strings"
 	helpers "florenbot/engine/helpers"
 	cache "florenbot/engine/cache"
+	helpers_user "florenbot/helpers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -46,6 +47,41 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	user_id := uint64(message.From.ID)
+	userProfile, err := helpers.GetUserByID(user_id)
+	if err != nil {
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
+		return
+	}
+
+	if userProfile.Id == 0 {
+		if debug_type {
+			log.Printf("Пользователь %s создается...", message.From.FirstName)
+		}
+		userProfile, err = helpers.CreateUser(
+			user_id,
+			message.From.UserName,
+			message.From.FirstName,
+		)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при создании пользователя: %v", err)
+				return
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать пользователя"))
+			return
+		}
+
+		if debug_type {
+			log.Printf("Пользователь %s создан", message.From.FirstName)
+			log.Printf("Результат: %v", userProfile)
+		}
+	} else {
+		if debug_type {
+			log.Printf("Пользователь %s уже существует", message.From.FirstName)
+		}
+	}
 
 	balance, err := cache.GetBalance(user_id, message.From.UserName)
 	if err != nil {
@@ -126,6 +162,43 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := strings.Fields(message.CommandArguments())
 	user_id := uint64(message.From.ID)
+	userProfile, err := helpers.GetUserByID(user_id)
+	debug_type := helpers_user.GetEnvBool("DEBUG", false)
+	if err != nil {
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы")); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
+		return
+	}
+
+	if userProfile.Id == 0 {
+		if debug_type {
+			log.Printf("Пользователь %s создается...", message.From.FirstName)
+		}
+		userProfile, err = helpers.CreateUser(
+			user_id,
+			message.From.UserName,
+			message.From.FirstName,
+		)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при создании пользователя: %v", err)
+				return
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать пользователя"))
+			return
+		}
+
+		if debug_type {
+			log.Printf("Пользователь %s создан", message.From.FirstName)
+			log.Printf("Результат: %v", userProfile)
+		}
+	} else {
+		if debug_type {
+			log.Printf("Пользователь %s уже существует", message.From.FirstName)
+		}
+	}
+
 	// Если аргументов меньше 2 (например, ввели только ставку или вообще буквы)
 	if len(args) < 2 {
 		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Укажите корректную ставку и цвет. Пример: `/roulette 100 красное`")); err != nil {

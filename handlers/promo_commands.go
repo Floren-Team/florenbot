@@ -21,15 +21,50 @@ type Promocode struct {
 func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	args := message.CommandArguments()
 	parts := strings.Fields(args)
+	user_id := uint64(message.From.ID)
+	debug_type := std_helpers.GetEnvBool("DEBUG", false)
+	userProfile, err := helpers.GetUserByID(user_id)
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+		return
+	}
+	
+	if userProfile.Id == 0 {
+		if debug_type {
+			log.Printf("Пользователь %s создается...", message.From.FirstName)
+		}
+		userProfile, err = helpers.CreateUser(
+			user_id,
+			message.From.UserName,
+			message.From.FirstName,
+		)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при создании пользователя: %v", err)
+				return
+			}
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать пользователя"))
+			return
+		}
+
+		if debug_type {
+			log.Printf("Пользователь %s создан", message.From.FirstName)
+			log.Printf("Результат: %v", userProfile)
+		}
+	} else {
+		if debug_type {
+			log.Printf("Пользователь %s уже существует", message.From.FirstName)
+		}
+	}
 
 	var availableActions = []string{"active", "create", "delete", "list", "stats"}
 
 	if len(parts) < 1 {
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nВсе действия: "+strings.Join(availableActions[:], ", ")))
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nАктивация промокода: /promo active [код]\nВсе действия: "+strings.Join(availableActions[:], ", ")))
 		return
 	}
 
-	debug_type := std_helpers.GetEnvBool("DEBUG", false)
+	debug_type = std_helpers.GetEnvBool("DEBUG", false)
 
 	action := parts[0]
 
