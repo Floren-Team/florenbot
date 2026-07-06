@@ -1,4 +1,3 @@
-.env
 sql
 *.db
 *.db-*
@@ -21,3 +20,10 @@ tmp_binary
 test*.sh
 build_go.sh
 *.ini
+generatesum.sh
+prepare.sh
+florenbot-cert
+generate_changelog.sh
+*.txt
+bat
+.env*
