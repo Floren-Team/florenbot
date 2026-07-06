@@ -52,3 +52,5 @@ func HandleChat(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 	}
 }
+
+
