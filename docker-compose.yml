@@ -32,52 +32,6 @@ services:
           memory: 256M
     networks:
       - florenbot
-  adminer:
-    image: adminer
-    container_name: florenbot_adminer
-    restart: always
-    ports:
-      - "8080:8080"
-    command: php -S 0.0.0.0:8080 -t /var/www/html
-    networks:
-      - florenbot
-
-  mariadb:
-    image: mariadb:10.11
-    container_name: florenbot_mariadb
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MARIADB_DATABASE: ${DB_NAME}
-      MARIADB_USER: ${DB_USER}
-      MARIADB_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - florenbot
-  redis:
-    image: redis:alpine
-    container_name: florenbot_redis
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    restart: always
-    command: ["redis-server", "--bind", "0.0.0.0", "--requirepass", "${REDIS_PASSWORD}"]
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - florenbot
 
 volumes:
   db_data:
@@ -85,3 +39,5 @@ volumes:
 
 networks:
   florenbot:
+    driver: bridge
+    external: false
