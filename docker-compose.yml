@@ -3,6 +3,8 @@ services:
     build: .
     container_name: florenbot
     restart: always
+    env_file:
+      - .env.docker
     depends_on:
       mariadb:
         condition: service_healthy
@@ -28,9 +30,21 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+    networks:
+      - florenbot
+  adminer:
+    image: adminer
+    container_name: florenbot_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    command: php -S 0.0.0.0:8080 -t /var/www/html
+    networks:
+      - florenbot
 
   mariadb:
     image: mariadb:10.11
+    container_name: florenbot_mariadb
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
@@ -46,9 +60,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+    networks:
+      - florenbot
   redis:
     image: redis:alpine
+    container_name: florenbot_redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -60,7 +76,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - florenbot
 
 volumes:
   db_data:
   redis_data:
+
+networks:
+  florenbot:
+    driver: bridge
+    external: false
