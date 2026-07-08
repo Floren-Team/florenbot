@@ -9,6 +9,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strings"
+	"errors"
+	"gorm.io/gorm"
 )
 
 // HandleClan обрабатывает команду /clan
@@ -61,71 +63,56 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	switch action {
 	case "create":
-		{
-			// Пытаемся получить ID клана пользователя
-			_, err := helpers.GetUserClanID(user_id)
+        {
+            // Пытаемся получить ID клана пользователя
+            _, err := helpers.GetUserClanID(user_id)
 
-			// 1. Проверяем: если ошибка есть, НО это не "нет строк" (sql.ErrNoRows),
-			// значит произошла реальная ошибка БД (соединение, запрос и т.д.)
-			if err != nil && err != sql.ErrNoRows {
-				if debug_type {
-					log.Printf("Ошибка получения клана из БД: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обращении к базе данных"))
-				return
-			}
+            // 1. Проверяем: произошла ли ошибка
+            if err != nil {
+                // Если это НЕ "запись не найдена" — значит, это реальная ошибка БД
+                if !errors.Is(err, gorm.ErrRecordNotFound) {
+                    if debug_type {
+                        log.Printf("Ошибка получения клана из БД: %v", err)
+                    }
+                    bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обращении к базе данных"))
+                    return
+                }
+                // Если err == gorm.ErrRecordNotFound, мы просто продолжаем выполнение — пользователь без клана
+            } else {
+                // Если err == nil, значит запись найдена (клан есть)
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы уже состоите в клане"))
+                return
+            }
 
-			// 2. Если ошибки нет (err == nil), значит клан найден,
-			// пользователь уже состоит в клане
-			if err == nil {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы уже состоите в клане"))
-				return
-			}
+            // ... далее ваш код создания клана (баланс, проверка формата и т.д.)
+            user_id := uint64(message.From.ID)
+            balance, err := cache.GetBalance(user_id, message.From.UserName)
+            if err != nil {
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+                return
+            }
 
-			user_id := uint64(message.From.ID)
-			balance, err := cache.GetBalance(user_id, message.From.UserName)
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка получения баланса: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
-				return
-			}
+            if balance < 1000 {
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 1000 рублей"))
+                return
+            }
 
-			if balance < 1000 {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 1000 рублей"))
-				return
-			}
+            if len(parts) < 2 {
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /clan create [имя]"))
+                return
+            }
 
-			// 3. Если мы дошли сюда, значит err == sql.ErrNoRows (клана нет).
-			// Теперь проверяем формат команды
-			if len(parts) < 2 {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /clan create [имя]"))
-				return
-			}
+            // ... создание клана
+            name := strings.Join(parts[1:], " ")
+            err = helpers.CreateClan(name, message.From.FirstName, user_id)
+            if err != nil {
+                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать клан"))
+                return
+            }
 
-			// Формируем полное имя пользователя
-			fullName := message.From.FirstName
-			if message.From.LastName != "" {
-				fullName += " " + message.From.LastName
-			}
-
-			// Пытаемся создать клан
-			name := strings.Join(parts[1:], " ")
-			err = helpers.CreateClan(name, fullName, user_id)
-
-			// 4. Обязательно проверяем, удалось ли создать клан в БД
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка создания клана: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать клан"))
-				return
-			}
-
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Клан создан: %s", name)))
-			return
-		}
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Клан создан: %s", name)))
+            return
+        }
 	case "getrole":
 		{
 			_, err := helpers.GetUserClanID(user_id)

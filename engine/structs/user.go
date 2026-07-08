@@ -19,7 +19,7 @@ type User struct {
 	Euro       float64 `gorm:"default:17800" json:"euro"`
 
 	Role      string `gorm:"size:32;default:'user'" json:"role"`
-	PromoCode string `gorm:"size:32" json:"promocode"`
+	PromoCode string `gorm:"column:promocode;size:32" json:"promocode"`
 
 	// Указатель *int64 позволяет GORM корректно записывать NULL, если клана нет
 	ClanID *int64 `json:"clan_id"`

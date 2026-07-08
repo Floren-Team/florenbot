@@ -47,12 +47,17 @@ func JoinClan(clanID, userID uint64) error {
 
 // DeleteClan удаляет клан и очищает clan_id у участников
 func DeleteClan(id uint64) error {
-	return engine.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&structs.User{}).Where("clan_id = ?", id).Update("clan_id", nil).Error; err != nil {
-			return err
-		}
-		return tx.Delete(&structs.Clan{}, id).Error
-	})
+    return engine.DB.Transaction(func(tx *gorm.DB) error {
+        if err := tx.Model(&structs.User{}).Where("clan_id = ?", id).Update("clan_id", nil).Error; err != nil {
+            return err
+        }
+
+        if err := tx.Where("clan_id = ?", id).Delete(&structs.ClanMember{}).Error; err != nil {
+            return err
+        }
+
+        return tx.Delete(&structs.Clan{}, id).Error
+    })
 }
 
 // --- Получение данных (Getters) ---

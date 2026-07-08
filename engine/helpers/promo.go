@@ -4,6 +4,7 @@ import (
 	engine "florenbot/engine/mysql"
 	"florenbot/engine/structs"
 	"gorm.io/gorm"
+	"strings"
 )
 
 // ActivateCode обновляет промокод у пользователя
@@ -21,31 +22,33 @@ func CreateCode(code string, amount int, ownerID uint64) error {
 	return engine.DB.Create(&promo).Error
 }
 
-// GetPromocodesMemberCount возвращает статистику использований промокодов
 func GetPromocodesMemberCount() (map[string]int, error) {
-	stats := make(map[string]int)
+    stats := make(map[string]int)
 
-	// Используем тип для сканирования результата
-	type Result struct {
-		Code  string
-		Total int
-	}
-	var results []Result
+    type Result struct {
+        Code  string
+        Total int
+    }
+    var results []Result
 
-	err := engine.DB.Model(&structs.User{}).
-		Select("promocode as code, count(*) as total").
-		Where("promocode IS NOT NULL").
-		Group("promocode").
-		Scan(&results).Error
+    err := engine.DB.Model(&structs.UserPromo{}).
+        Select("code, count(*) as total").
+        Where("code IS NOT NULL AND code != ''"). 
+        Group("code").
+        Scan(&results).Error
 
-	if err != nil {
-		return nil, err
-	}
+    if err != nil {
+        return nil, err
+    }
 
-	for _, res := range results {
-		stats[res.Code] = res.Total
-	}
-	return stats, nil
+    for _, res := range results {
+        cleanCode := strings.TrimSpace(res.Code)
+        if cleanCode != "" {
+            stats[cleanCode] = res.Total
+        }
+    }
+    
+    return stats, nil
 }
 
 // GetUserCode получает код пользователя
