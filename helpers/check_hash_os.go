@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"os/exec"
 )
 
 func CheckHashAndGpg() error {
@@ -59,22 +59,22 @@ func CheckHashAndGpg() error {
 		return nil
 
 	case "linux":
-        // Шлях до файлу підпису .asc
-        sigPath := exePath + ".asc"
-        
-        if !fileExists(sigPath) {
-            return fmt.Errorf("Ошибка проверки GPG: не удалось найти файл подписи: %s", sigPath)
-        }
+		// Шлях до файлу підпису .asc
+		sigPath := exePath + ".asc"
 
-        log.Printf("Проверка подписи для: %s", exePath)
-        
-        cmd := exec.Command("gpg", "--verify", sigPath, exePath)
-        if output, err := cmd.CombinedOutput(); err != nil {
-            return fmt.Errorf("Ошибка проверки GPG: %s", string(output))
-        }
-        
-        log.Println("Цифровая подпись успешно проверена.")
-        return nil
+		if !fileExists(sigPath) {
+			return fmt.Errorf("Ошибка проверки GPG: не удалось найти файл подписи: %s", sigPath)
+		}
+
+		log.Printf("Проверка подписи для: %s", exePath)
+
+		cmd := exec.Command("gpg", "--verify", sigPath, exePath)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("Ошибка проверки GPG: %s", string(output))
+		}
+
+		log.Println("Цифровая подпись успешно проверена.")
+		return nil
 	default:
 		return fmt.Errorf("ОС %s не поддерживается", runtime.GOOS)
 	}

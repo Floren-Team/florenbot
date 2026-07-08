@@ -51,7 +51,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			if exists_user.Id == 0 {
+			if exists_user.ID == 0 {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не найден"))
 				return
 			}
@@ -100,7 +100,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			if exists_user.Id == 0 {
+			if exists_user.ID == 0 {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Пользователь не найден"))
 				return
 			}

@@ -58,7 +58,7 @@ func HandleThanks(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	log.Println("Репутация пользователя", reply_user_id, "увеличена на 200 : ", total_reputate)
 	msgText := "И тебе!"
 
-	if err := helpers.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
+	if err := helpers.UpdatePositiveReputation(reply_user_id, total_reputate); err != nil {
 		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе")
 		msg.ReplyToMessageID = message.MessageID
 		if _, err := bot.Send(msg); err != nil {
@@ -177,7 +177,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			total_reputate := current_reputate - reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s уменьшена на %d", message.ReplyToMessage.From.FirstName, reputate)
 
-			if err := helpers.UpdateNetagiveReputation(reply_user_id, total_reputate); err != nil {
+			if err := helpers.UpdateNegativeReputation(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
 				return
 			}
@@ -212,7 +212,7 @@ func HandleReputation(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			total_reputate := current_reputate + reputate
 			msgText := fmt.Sprintf("✅ Репутация пользователя %s увеличена на %d", message.ReplyToMessage.From.FirstName, reputate)
 
-			if err := helpers.UpdatePositiveReputation_2(reply_user_id, total_reputate); err != nil {
+			if err := helpers.UpdatePositiveReputation(reply_user_id, total_reputate); err != nil {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка обновления репутации в базе"))
 				return
 			}

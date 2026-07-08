@@ -33,7 +33,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		clan, err := helpers.GetClan(clan_id)
+		clan, err := helpers.GetClanByID(clan_id)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка получения клана: %v", err)
@@ -42,14 +42,14 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
-		count, _ := helpers.GetClanMemberCount(clan.Id)
+		count, _ := helpers.GetClanMemberCount(clan_id)
 
 		info := fmt.Sprintf("✅ *Информация о клане:*\n\n"+
 			"🆔 ID: `%d`\n"+
 			"🏷 Название: *%s*\n"+
 			"👥 Участников: `%d`\n"+
 			"👑 Имя владельца: `%s`",
-			clan.Id, clan.Name, count, clan.OwnerName)
+			clan.ID, clan.Name, count, clan.OwnerName)
 
 		msg := tgbotapi.NewMessage(message.Chat.ID, info)
 		msg.ParseMode = "Markdown"
@@ -248,7 +248,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			for _, clan := range clans {
 				clanDetails := fmt.Sprintf(
 					"🆔 ID: `%d`\n🏷 Название: *%s*\n👥 Участников: `%d`",
-					clan.Id, clan.Name, clan.MemberCount,
+					clan.ID, clan.Name, clan.MemberCount,
 				)
 
 				info += clanDetails
@@ -371,7 +371,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			err = helpers.DeleteClan(clan_id)
+			err = helpers.DeleteClan(uint64(clan_id.ID))
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка удаления клана: %v", err)
@@ -408,7 +408,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			code := parts[1]
-			clan_id, err := helpers.GetInviteCodeClan(code)
+			clan, err := helpers.GetClanByInviteCode(code)
 			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при приглашении в клан: %v", err)
@@ -416,7 +416,7 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Клана с таким кодом не существует"))
 				return
 			}
-
+			clan_id := uint64(clan.ID)
 			err = helpers.CheckBlacklist(clan_id, user_id)
 
 			if err != nil {

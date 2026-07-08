@@ -13,8 +13,9 @@ import (
 
 	"flag"
 	"florenbot/bones"
-	engine "florenbot/engine/mysql"
 	cache "florenbot/engine/cache"
+	helper "florenbot/engine/helpers"
+	engine "florenbot/engine/mysql"
 	"florenbot/handlers"
 	admin_handlers "florenbot/handlers/admin"
 	"runtime"
@@ -24,10 +25,10 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ Файл .env не найден")
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("env not found, using system environment variables")
 	}
-
 	verify := flag.Bool("skip", false, "Пропустить проверки хеширования")
 	version := flag.Bool("version", false, "Версия бота")
 	flag.Parse()
@@ -37,27 +38,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	
-
-
-
 	if *verify {
-        log.Println("⚠️ Пропускаем проверку хеширования (режим --skip)")
-    } else {
+		log.Println("⚠️ Пропускаем проверку хеширования (режим --skip)")
+	} else {
 		log.Println("Проверка хеширования...")
-        if err := helpers.CheckHashAndGpg(); err != nil {
-            panic(err)
-        }
-    }
-	
+		if err := helpers.CheckHashAndGpg(); err != nil {
+			panic(err)
+		}
+	}
 
 	log.Printf("ОС: %s, Архитектура: %s", runtime.GOOS, runtime.GOARCH)
 
 	time.Sleep(4 * time.Second)
 
-
-
-	engine.InitDB()
+	engine.ConnectDB()
 	cache.InitCache()
 
 	token := os.Getenv("BOT_TOKEN")
@@ -161,7 +155,7 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	case "newsletter":
 		admin_handlers.HandleNewsLetter(bot, message)
-	
+
 	case "chat":
 		handlers.HandleChat(bot, message)
 
@@ -187,7 +181,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	for _, newUser := range update.Message.NewChatMembers {
-		isBanned, _ := engine.IsUserBanned(newUser.ID)
+		user_id := newUser.ID
+		isBanned := helper.IsUserBanned(uint64(user_id))
 		if isBanned {
 			bot.Request(tgbotapi.BanChatMemberConfig{ChatMemberConfig: tgbotapi.ChatMemberConfig{ChatID: update.Message.Chat.ID, UserID: newUser.ID}})
 		}

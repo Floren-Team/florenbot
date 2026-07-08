@@ -54,10 +54,10 @@ func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 			for _, user := range users {
 				if debug_type {
-					log.Printf("Отправка сообщения пользователям %d", user.Id)
+					log.Printf("Отправка сообщения пользователям %d", user.ID)
 				}
 
-				msg := tgbotapi.NewMessage(int64(user.Id), text)
+				msg := tgbotapi.NewMessage(int64(user.ID), text)
 
 				if _, err := bot.Send(msg); err != nil {
 					if debug_type {
@@ -74,7 +74,7 @@ func HandleNewsLetter(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 		}
 	case "chat":
-		
+
 	default:
 		{
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/newsletter [private] [текст]`"))

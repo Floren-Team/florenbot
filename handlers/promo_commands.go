@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	engine "florenbot/engine/mysql"
 	cache "florenbot/engine/cache"
 	helpers "florenbot/engine/helpers"
+	engine "florenbot/engine/mysql"
 	std_helpers "florenbot/helpers"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -28,8 +28,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
 		return
 	}
-	
-	if userProfile.Id == 0 {
+
+	if userProfile.ID == 0 {
 		if debug_type {
 			log.Printf("Пользователь %s создается...", message.From.FirstName)
 		}
@@ -92,8 +92,6 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /promo create [код] [сумма]"))
 			return
 		}
-
-	
 
 		code := parts[1]
 		amount, err := strconv.Atoi(parts[2])
@@ -223,7 +221,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// 3. Получение суммы промокода
-		amount, err := helpers.GetCode(code)
+		promo, err := helpers.GetCode(code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
@@ -231,6 +229,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
 			return
 		}
+
+		amount := promo.Amount
 
 		// 4. Активация: записываем код пользователю (только в БД)
 		err = helpers.ActivateCode(user_id, code)
@@ -252,10 +252,10 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		// Рассчитываем новый баланс
-		newBalance := currentBalance + float64(amount)
+		newBalance := currentBalance + amount
 
 		// Обновляем БД
-		err = engine.UpdateBalanceSQL(user_id, float64(amount))
+		err = engine.UpdateBalance(user_id, amount)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка обновления БД: %v", err)

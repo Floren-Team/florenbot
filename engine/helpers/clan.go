@@ -1,313 +1,171 @@
 package helpers
 
 import (
-	"log"
+	"errors"
 	engine "florenbot/engine/mysql"
 	"florenbot/engine/structs"
-	"database/sql"
-	"errors"
-	helpers "florenbot/helpers"
+	"gorm.io/gorm"
+	// Используем пакет для генерации кодов
+	"florenbot/helpers"
 )
 
-func CreateClan(name string, owner_name string, owner_id uint64) error {
-	tx, err := engine.DB.Begin()
-	if err != nil {
-		return err
-	}
+// --- Основные операции ---
 
-	res, err := tx.Exec("INSERT INTO clans (name, owner_id, owner_name) VALUES (?, ?, ?)", name, owner_id, owner_name)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+// CreateClan создает клан, владельца и участника в транзакции
+func CreateClan(name string, ownerName string, ownerID uint64) error {
+	return engine.DB.Transaction(func(tx *gorm.DB) error {
+		clan := structs.Clan{Name: name, OwnerID: int64(ownerID), OwnerName: ownerName}
+		if err := tx.Create(&clan).Error; err != nil {
+			return err
 		}
-		return err
-	}
-
-	clan_id, err := res.LastInsertId()
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+		if err := tx.Model(&structs.User{}).Where("id = ?", ownerID).Update("clan_id", clan.ID).Error; err != nil {
+			return err
 		}
-		return err
-	}
+		member := structs.ClanMember{ClanID: uint(clan.ID), UserID: int64(ownerID), Role: "owner"}
+		return tx.Create(&member).Error
+	})
+}
 
-	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", clan_id, owner_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+// KickClanUser исключает пользователя из клана
+func KickClanUser(clanID, userID uint64) error {
+	return engine.DB.Where("clan_id = ? AND user_id = ?", clanID, userID).Delete(&structs.ClanMember{}).Error
+}
+
+// JoinClan добавляет пользователя в клан с проверкой черного списка
+func JoinClan(clanID, userID uint64) error {
+	return engine.DB.Transaction(func(tx *gorm.DB) error {
+		if err := CheckBlacklist(clanID, userID); err != nil {
+			return err
 		}
-		return err
-	}
-
-	_, err = tx.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, owner_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+		member := structs.ClanMember{ClanID: uint(clanID), UserID: int64(userID), Role: "member"}
+		if err := tx.Create(&member).Error; err != nil {
+			return err
 		}
-		return err
-	}
+		return tx.Model(&structs.User{}).Where("id = ?", userID).Update("clan_id", clanID).Error
+	})
+}
 
-	_, err = tx.Exec("UPDATE clans_members SET role = 'owner' WHERE clan_id = ? AND user_id = ?", clan_id, owner_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+// DeleteClan удаляет клан и очищает clan_id у участников
+func DeleteClan(id uint64) error {
+	return engine.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&structs.User{}).Where("clan_id = ?", id).Update("clan_id", nil).Error; err != nil {
+			return err
 		}
-		return err
-	}
-
-	return tx.Commit()
+		return tx.Delete(&structs.Clan{}, id).Error
+	})
 }
 
-func GetClanOwnerID(clan_id uint64) (uint64, error) {
-	var owner_id uint64
-	err := engine.DB.QueryRow("SELECT owner_id FROM clans WHERE id = ?", clan_id).Scan(&owner_id)
-	return owner_id, err
-}
+// --- Получение данных (Getters) ---
 
-func AddUserToClan(clan_id uint64, user_id uint64) error {
-	_, err := engine.DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
-	return err
-}
-
-func GetUserClanID(userID uint64) (uint64, error) {
-	var clanID uint64
-	err := engine.DB.QueryRow("SELECT clan_id FROM clans_members WHERE user_id = ?", userID).Scan(&clanID)
-	return clanID, err
-}
-
-func DeleteMembersClan(clan_id uint64) error {
-	_, err := engine.DB.Exec("DELETE FROM clans_members WHERE clan_id = ?", clan_id)
-	return err
-}
-
-func KickClanUser(clan_id uint64, user_id uint64) error {
-	_, err := engine.DB.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
-	return err
-}
-
-func GetUserClanRole(userID uint64) (string, error) {
-	var role string
-	err := engine.DB.QueryRow("SELECT role FROM clans_members WHERE user_id = ?", userID).Scan(&role)
-	return role, err
-}
-
-func GetClans() ([]structs.Clans, error) {
-	query := `
-    SELECT 
-        c.id, 
-        c.name, 
-        c.owner_id, 
-        c.invite_code,
-        COUNT(cm.user_id) as member_count
-    FROM clans c
-    LEFT JOIN clans_members cm ON c.id = cm.clan_id
-    GROUP BY c.id`
-
-	rows, err := engine.DB.Query(query)
+func GetClanByID(id uint64) (*structs.Clan, error) {
+	var clan structs.Clan
+	err := engine.DB.First(&clan, id).Error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var clans []structs.Clans
-	for rows.Next() {
-		var c structs.Clans
-		var inviteCode sql.NullString
-
-		if err := rows.Scan(&c.Id, &c.Name, &c.OwnerId, &inviteCode, &c.MemberCount); err != nil {
-			return nil, err
-		}
-
-		if inviteCode.Valid {
-			c.InviteCode = inviteCode.String
-		}
-
-		clans = append(clans, c)
-	}
-
-	return clans, nil
+	return &clan, nil
+}
+func GetClanByOwnerID(ownerID uint64) (*structs.Clan, error) {
+	var clan structs.Clan
+	err := engine.DB.Where("owner_id = ?", ownerID).First(&clan).Error
+	return &clan, err
 }
 
-func BlockMemberClan(clan_id uint64, user_id uint64, reason string) error {
-	tx, err := engine.DB.Begin()
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("INSERT INTO clans_blacklist (user_id, clan_id, reason) VALUES (?, ?, ?)", user_id, clan_id, reason)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
-		}
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
-		}
-		return err
-	}
-
-	return tx.Commit()
-
+func GetClanOwnerID(clanID uint64) (uint64, error) {
+	var clan structs.Clan
+	err := engine.DB.Select("owner_id").First(&clan, clanID).Error
+	return uint64(clan.OwnerID), err
 }
 
-func GetClanMemberCount(clanID int64) (int, error) {
-	var count int
-	query := "SELECT COUNT(*) FROM clans_members WHERE clan_id = ?"
-
-	err := engine.DB.QueryRow(query, clanID).Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
+func GetUserClanID(userID uint64) (uint64, error) {
+	var member structs.ClanMember
+	err := engine.DB.Select("clan_id").Where("user_id = ?", userID).First(&member).Error
+	return uint64(member.ClanID), err
 }
 
-func GetClanByID(id uint64) (*structs.Clans, error) {
-	clan := &structs.Clans{}
-	query := "SELECT id, name, owner_id FROM clans WHERE id = ?"
-	err := engine.DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerId)
-	return clan, err
+func GetUserClanRole(userID uint64) (string, error) {
+	var member structs.ClanMember
+	err := engine.DB.Select("role").Where("user_id = ?", userID).First(&member).Error
+	return member.Role, err
 }
 
-func GetClanByOwnerID(owner_id uint64) (uint64, error) {
-	var id uint64
-	err := engine.DB.QueryRow("SELECT id FROM clans WHERE owner_id = ?", owner_id).Scan(&id)
-	return id, err
+func GetClanMemberCount(clanID uint64) (int64, error) {
+	var count int64
+	err := engine.DB.Model(&structs.ClanMember{}).Where("clan_id = ?", clanID).Count(&count).Error
+	return count, err
 }
 
-func GetClan(id uint64) (*structs.Clans, error) {
-	clan := &structs.Clans{}
-	query := "SELECT id, name, owner_name FROM clans WHERE id = ?"
-	err := engine.DB.QueryRow(query, id).Scan(&clan.Id, &clan.Name, &clan.OwnerName)
-	return clan, err
+func GetClans() ([]structs.Clan, error) {
+	var clans []structs.Clan
+	err := engine.DB.Table("clans").
+		Select("clans.*, COUNT(clan_members.user_id) as member_count").
+		Joins("LEFT JOIN clan_members ON clan_members.clan_id = clans.id").
+		Group("clans.id").
+		Find(&clans).Error
+	return clans, err
 }
 
-func CheckBlacklist(clan_id uint64, user_id uint64) error {
-	var exists bool
-	err := engine.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM clans_blacklist WHERE user_id = ? AND clan_id = ?)", user_id, clan_id).Scan(&exists)
+// --- Работа с кодами приглашений ---
 
-	if err != nil {
-		return err
-	}
-
-	if exists {
-		return errors.New("user_in_blacklist")
-	}
-
-	return nil
-}
-func JoinClan(clan_id uint64, user_id uint64) error {
-	_, err := engine.DB.Exec("INSERT INTO clans_members (clan_id, user_id) VALUES (?, ?)", clan_id, user_id)
-	return err
+func GetClanByInviteCode(code string) (*structs.Clan, error) {
+	var clan structs.Clan
+	err := engine.DB.Where("invite_code = ?", code).First(&clan).Error
+	return &clan, err
 }
 
-func LeaveClan(clan_id uint64, user_id uint64) error {
-	query := "DELETE FROM clans_members WHERE clan_id = ? AND user_id = ?"
-	result, err := engine.DB.Exec(query, clan_id, user_id)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		log.Print("Запись не найдена или не была удалена")
-	}
-
-	return nil
-}
-
-func GetInviteCodeClan(code string) (uint64, error) {
-	var clanID uint64
-	err := engine.DB.QueryRow("SELECT id FROM clans WHERE invite_code = ?", code).Scan(&clanID)
-	if err != nil {
-		return 0, err
-	}
-	return clanID, nil
-}
-
-func GetClanInviteCode(clan_id uint64) (string, error) {
-	var code sql.NullString
-
-	err := engine.DB.QueryRow("SELECT invite_code FROM clans WHERE id = ?", clan_id).Scan(&code)
+func GetClanInviteCode(clanID uint64) (string, error) {
+	var clan structs.Clan
+	err := engine.DB.Select("invite_code").First(&clan, clanID).Error
 	if err != nil {
 		return "", err
 	}
-
-	if !code.Valid {
-		return "", sql.ErrNoRows
-	}
-
-	return code.String, nil
-}
-func DeleteInviteCode(clan_id uint64) error {
-	_, err := engine.DB.Exec("UPDATE clans SET invite_code = NULL WHERE id = ?", clan_id)
-	return err
+	return clan.InviteCode, nil
 }
 
-func RevokeInviteCode(clan_id uint64) error {
-	tx, err := engine.DB.Begin()
+func CreateInviteCode(clanID uint64, code string) error {
+	return engine.DB.Model(&structs.Clan{}).Where("id = ?", clanID).Update("invite_code", code).Error
+}
 
-	if err != nil {
-		return err
-	}
+func DeleteInviteCode(clanID uint64) error {
+	return engine.DB.Model(&structs.Clan{}).Where("id = ?", clanID).Update("invite_code", nil).Error
+}
 
-	_, err = tx.Exec("UPDATE clans SET invite_code = NULL WHERE id = ?", clan_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+func RevokeInviteCode(clanID uint64) error {
+	return engine.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&structs.Clan{}).Where("id = ?", clanID).Update("invite_code", nil).Error; err != nil {
+			return err
 		}
-		return err
-	}
-
-	newCode := helpers.GenerateCode()
-	_, err = tx.Exec("UPDATE clans SET invite_code = ? WHERE id = ?", newCode, clan_id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
-		}
-		return err
-	}
-
-	return tx.Commit()
+		newCode := helpers.GenerateCode()
+		return tx.Model(&structs.Clan{}).Where("id = ?", clanID).Update("invite_code", newCode).Error
+	})
 }
 
-func CreateInviteCode(clan_id uint64, code string) error {
-	_, err := engine.DB.Exec("UPDATE clans SET invite_code = ? WHERE id = ?", code, clan_id)
-	return err
+// --- Управление участниками ---
+
+func AddUserToClan(clanID, userID uint64) error {
+	member := structs.ClanMember{ClanID: uint(clanID), UserID: int64(userID), Role: "member"}
+	return engine.DB.Create(&member).Error
 }
 
-func GetClanMember(clan_id uint64, user_id uint64) (uint16, error) {
-	var id uint16
-	err := engine.DB.QueryRow("SELECT user_id FROM clans_members WHERE clan_id = ? AND user_id = ?", clan_id, user_id).Scan(&id)
-	return id, err
+func LeaveClan(clanID, userID uint64) error {
+	return engine.DB.Where("clan_id = ? AND user_id = ?", clanID, userID).Delete(&structs.ClanMember{}).Error
 }
 
-func DeleteClan(id uint64) error {
-	tx, err := engine.DB.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE users SET clan_id = NULL WHERE clan_id = ?", id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
+func BlockMemberClan(clanID, userID uint64, reason string) error {
+	return engine.DB.Transaction(func(tx *gorm.DB) error {
+		blacklist := structs.ClanBlacklist{ClanID: uint(clanID), UserID: int64(userID), Reason: reason}
+		if err := tx.Create(&blacklist).Error; err != nil {
+			return err
 		}
-		return err
-	}
+		return tx.Where("clan_id = ? AND user_id = ?", clanID, userID).Delete(&structs.ClanMember{}).Error
+	})
+}
 
-	_, err = tx.Exec("DELETE FROM clans WHERE id = ?", id)
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			log.Printf("Ошибка при откате транзакции: %v", err)
-		}
-		return err
+func CheckBlacklist(clanID uint64, userID uint64) error {
+	var count int64
+	engine.DB.Model(&structs.ClanBlacklist{}).Where("clan_id = ? AND user_id = ?", clanID, userID).Count(&count)
+	if count > 0 {
+		return errors.New("user_in_blacklist")
 	}
-
-	return tx.Commit()
+	return nil
 }

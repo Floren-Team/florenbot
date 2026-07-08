@@ -1,15 +1,15 @@
 package handlers
 
 import (
+	cache "florenbot/engine/cache"
+	helpers "florenbot/engine/helpers"
+	helpers_user "florenbot/helpers"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
-	helpers "florenbot/engine/helpers"
-	cache "florenbot/engine/cache"
-	helpers_user "florenbot/helpers"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -55,7 +55,7 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if userProfile.Id == 0 {
+	if userProfile.ID == 0 {
 		if debug_type {
 			log.Printf("Пользователь %s создается...", message.From.FirstName)
 		}
@@ -171,7 +171,7 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if userProfile.Id == 0 {
+	if userProfile.ID == 0 {
 		if debug_type {
 			log.Printf("Пользователь %s создается...", message.From.FirstName)
 		}

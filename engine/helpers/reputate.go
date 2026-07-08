@@ -1,92 +1,53 @@
 package helpers
 
 import (
-	"database/sql"
 	engine "florenbot/engine/mysql"
-	helpers "florenbot/helpers"
-	"log"
+	"florenbot/engine/structs"
+	"gorm.io/gorm"
 )
 
-func UpdateNetagiveReputation(user_id uint64, reputation int) error {
-	debug_type := helpers.GetEnvBool("DEBUG", false)
-	err := engine.DB.QueryRow("UPDATE users SET negative_reputation = ? WHERE id = ?", reputation, user_id).Err()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			if debug_type {
-				log.Printf("Пользователь с ID %d не был найден", user_id)
-				return err
-			}
-		}
-	}
-	return nil
+// UpdateNegativeReputation устанавливает фиксированное значение негативной репутации
+func UpdateNegativeReputation(userID uint64, reputation int) error {
+	return engine.DB.Model(&structs.User{}).Where("id = ?", userID).Update("negative_reputation", reputation).Error
 }
 
-func UpdatePositiveReputation_2(user_id uint64, reputation int) error {
-	debug_type := helpers.GetEnvBool("DEBUG", false)
-	err := engine.DB.QueryRow("UPDATE users SET positive_reputation = ? WHERE id = ?", reputation, user_id).Err()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			if debug_type {
-				log.Printf("Пользователь с ID %d не был найден", user_id)
-				return err
-			}
-		}
-	}
-	return nil
+// UpdatePositiveReputation устанавливает фиксированное значение позитивной репутации
+func UpdatePositiveReputation(userID uint64, reputation int) error {
+	return engine.DB.Model(&structs.User{}).Where("id = ?", userID).Update("positive_reputation", reputation).Error
 }
 
-func GetReputation(user_id uint64) (int, error) {
-	// 1. Получаем позитивную репутацию
-	pos, err := GetPositiveReputation(user_id)
+// AddNegativeReputation прибавляет значение к текущей негативной репутации
+func AddNegativeReputation(userID uint64, reputation int) error {
+	return engine.DB.Model(&structs.User{}).Where("id = ?", userID).
+		Update("negative_reputation", gorm.Expr("negative_reputation + ?", reputation)).Error
+}
+
+// AddPositiveReputation прибавляет значение к текущей позитивной репутации
+func AddPositiveReputation(userID uint64, reputation int) error {
+	return engine.DB.Model(&structs.User{}).Where("id = ?", userID).
+		Update("positive_reputation", gorm.Expr("positive_reputation + ?", reputation)).Error
+}
+
+// GetReputation вычисляет итоговую репутацию
+func GetReputation(userID uint64) (int, error) {
+	var user structs.User
+	err := engine.DB.Select("positive_reputation", "negative_reputation").First(&user, userID).Error
 	if err != nil {
 		return 0, err
 	}
-
-	// 2. Получаем негативную репутацию
-	neg, err := GetNegativeReputation(user_id)
-	if err != nil {
-		return 0, err
-	}
-
-	// 3. Вычисляем итоговую репутацию
-	// Логика: Positive - Negative (или сумма, в зависимости от вашей задумки)
-	total_reputation := pos - neg
-
-	return total_reputation, nil
+	return user.PositiveReputation - user.NegativeReputation, nil
 }
 
-func GetNegativeReputation(user_id uint64) (int, error) {
-	var reputation int
-	err := engine.DB.QueryRow("SELECT negative_reputation FROM users WHERE id = ?", user_id).Scan(&reputation)
-	return reputation, err
+// GetNegativeReputation получает негативную репутацию
+func GetNegativeReputation(userID uint64) (int, error) {
+	var user structs.User
+	err := engine.DB.Select("negative_reputation").First(&user, userID).Error
+	return user.NegativeReputation, err
 }
 
-func GetPositiveReputation(user_id uint64) (int, error) {
-	var reputation int
-	err := engine.DB.QueryRow("SELECT positive_reputation FROM users WHERE id = ?", user_id).Scan(&reputation)
-	return reputation, err
-}
-
-func UpdateNegativeReputation(user_id uint64, reputation int) {
-	debug_type := helpers.GetEnvBool("DEBUG", false)
-	err := engine.DB.QueryRow("UPDATE users SET negative_reputation = negative_reputation + ? WHERE id = ?", reputation, user_id).Err()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			if debug_type {
-				log.Printf("Пользователь с ID %d не был найден", user_id)
-			}
-		}
-	}
-}
-
-func UpdatePositiveReputation(user_id uint64, reputation int) {
-	debug_type := helpers.GetEnvBool("DEBUG", false)
-	err := engine.DB.QueryRow("UPDATE users SET positive_reputation = positive_reputation + ? WHERE id = ?", reputation, user_id).Err()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			if debug_type {
-				log.Printf("Пользователь с ID %d не был найден", user_id)
-			}
-		}
-	}
+// GetPositiveReputation получает позитивную репутацию
+func GetPositiveReputation(userID uint64) (int, error) {
+	var user structs.User
+	err := engine.DB.Select("positive_reputation").First(&user, userID).Error
+	return user.PositiveReputation, err
 }

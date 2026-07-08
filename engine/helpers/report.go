@@ -6,48 +6,54 @@ import (
 	"log"
 )
 
-func CreateReport(user_id uint64, text string) error {
-	_, err := engine.DB.Exec("INSERT INTO reports (user_id, text) VALUES (?, ?)", user_id, text)
-	if err != nil {
-		log.Println(err)
+// CreateReport создает новый отчет
+func CreateReport(userID uint64, text string) error {
+	report := structs.Report{
+		UserID: &userID, // Используем указатель, так как в структуре это *int64
+		Text:   text,
 	}
-	return err
+
+	result := engine.DB.Create(&report)
+	if result.Error != nil {
+		log.Printf("Ошибка при создании отчета: %v", result.Error)
+		return result.Error
+	}
+	return nil
 }
 
-func GetReports() []structs.Report {
+// GetReports получает все отчеты
+func GetReports() ([]structs.Report, error) {
 	var reports []structs.Report
-	rows, err := engine.DB.Query("SELECT user_id, text FROM reports")
+
+	// Find автоматически выбирает все записи из таблицы
+	err := engine.DB.Find(&reports).Error
 	if err != nil {
-		log.Println(err)
+		log.Printf("Ошибка при получении списка отчетов: %v", err)
+		return nil, err
 	}
-	for rows.Next() {
-		var report structs.Report
-		err := rows.Scan(&report.AngryId, &report.UserId, &report.Text)
-		if err != nil {
-			log.Println(err)
-		}
-		reports = append(reports, report)
-	}
-	return reports
+	return reports, nil
 }
 
-func HasReport(user_id uint64) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM reports WHERE user_id = ?)"
+// HasReport проверяет, есть ли отчет у данного пользователя
+func HasReport(userID uint64) (bool, error) {
+	var count int64
 
-	err := engine.DB.QueryRow(query, user_id).Scan(&exists)
+	// Count — самый быстрый способ проверить существование записи в GORM
+	err := engine.DB.Model(&structs.Report{}).Where("user_id = ?", userID).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
 
-	return exists, nil
+	return count > 0, nil
 }
 
-func DeleteReport(user_id uint64) error {
-	_, err := engine.DB.Exec("DELETE FROM reports WHERE user_id = ?", user_id)
-	if err != nil {
-		return err
+// DeleteReport удаляет отчет пользователя
+func DeleteReport(userID uint64) error {
+	// Delete удаляет записи, соответствующие условию
+	result := engine.DB.Where("user_id = ?", userID).Delete(&structs.Report{})
+	if result.Error != nil {
+		log.Printf("Ошибка при удалении отчета: %v", result.Error)
+		return result.Error
 	}
-
 	return nil
 }

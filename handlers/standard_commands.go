@@ -25,7 +25,7 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if userProfile.Id == 0 {
+	if userProfile.ID == 0 {
 		if debug_type {
 			log.Printf("Пользователь %s создается...", message.From.FirstName)
 		}

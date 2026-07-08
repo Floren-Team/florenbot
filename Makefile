@@ -15,6 +15,8 @@ build:
 run:
 	go run ./bot
 
+format:
+	gofmt -w -s .
 
 run-skip:
 	go run ./bot -skip
