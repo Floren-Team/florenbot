@@ -6,10 +6,11 @@ import (
 	"florenbot/engine/structs"
 	"florenbot/helpers"
 	"fmt"
-	"os"
 	"errors"
 	"time"
 	"strconv"
+    "os"
+    "encoding/json"
 
 	"gorm.io/gorm"
 )
@@ -29,6 +30,12 @@ func IsUserBanned(userID uint64) bool {
 	return count > 0
 }
 
+func GetUserIDByUsername(username string) uint64 {
+    var user structs.User
+    engine.DB.Select("id").Where("username = ?", username).First(&user)
+    return user.ID
+}
+
 func GetUser(userID uint64) (*structs.User, error) {
     var user structs.User
     err := engine.DB.Select("first_name").Where("id = ?", userID).First(&user).Error
@@ -36,78 +43,82 @@ func GetUser(userID uint64) (*structs.User, error) {
 }
 
 // GetUserByID получает пользователя из кеша или БД
+
+
+
 func GetUserByID(tgID uint64) (structs.User, error) {
     var user structs.User
+    cacheEngine := helpers.GetEnv("CACHE_ENGINE", "local")
     key := fmt.Sprintf("user:%d", tgID)
 
-    // 1. Попытка чтения из Redis
-    if helpers.GetEnv("CACHE_ENGINE", "local") == "redis" {
+    switch cacheEngine {
+    case "redis":
         data, err := cache.HGetAll(key)
         if err == nil && len(data) > 0 {
-            // Восстанавливаем данные из мапы в структуру
             user.ID = tgID
             user.Username = data["username"]
+            
             if val, err := strconv.ParseFloat(data["balance"], 64); err == nil { user.Balance = val }
             if val, err := strconv.ParseFloat(data["euro"], 64); err == nil { user.Euro = val }
             
-            if val, err := strconv.ParseUint(data["clan_id"], 10, 64); err == nil {
-                v := int64(val)
-                user.ClanID = &v
+            // Работа с вказателем для ClanID
+            if val, err := strconv.ParseUint(data["clan_id"], 10, 64); err == nil { 
+                v := uint64(val) 
+                user.ClanID = &v 
             }
-
-			if val, err := strconv.ParseInt(data["negative_reputation"], 10, 64); err == nil {
-				user.NegativeReputation = int(val)
-			}
-
-			if val, err := strconv.ParseInt(data["positive_reputation"], 10, 64); err == nil {
-				user.PositiveReputation = int(val)
-			}
-
-			if val, err := strconv.ParseInt(data["losses"], 10, 64); err == nil {
-				user.Losses = int(val)
-			}
-
-			if val, err := strconv.ParseInt(data["wins"], 10, 64); err == nil {
-				user.Wins = int(val)
-			}
-
-			user.PromoCode = data["promocode"]
-			user.Role = data["role"]
+            
+            // Работа с вказателем для RoleID (исправлено)
+            if roleID, err := strconv.ParseUint(data["role_id"], 10, 64); err == nil { 
+                v := uint64(roleID)
+                user.RoleID = &v 
+            }
+            
+            user.NegativeReputation, _ = strconv.Atoi(data["negative_reputation"])
+            user.PositiveReputation, _ = strconv.Atoi(data["positive_reputation"])
+            user.Losses, _ = strconv.Atoi(data["losses"])
+            user.Wins, _ = strconv.Atoi(data["wins"])
+            user.PromoCode = data["promocode"]
             
             return user, nil
         }
+    case "local":
+        filename := fmt.Sprintf("cache/user_%d.json", tgID)
+        if fileData, err := os.ReadFile(filename); err == nil {
+            if err := json.Unmarshal(fileData, &user); err == nil {
+                return user, nil
+            }
+        }
     }
 
-    // 2. Чтение из БД через GORM
-    err := engine.DB.First(&user, tgID).Error
+    // Запрос к базе данных с Preload для связанных данных
+    err := engine.DB.Preload("Role").First(&user, tgID).Error
     if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return structs.User{}, nil 
-        }
+        if errors.Is(err, gorm.ErrRecordNotFound) { return structs.User{}, nil }
         return structs.User{}, err
     }
 
-    // 3. Синхронизация кеша (если пользователь найден в БД)
-    if helpers.GetEnv("CACHE_ENGINE", "local") == "redis" {
+    // Сохранение в кеш после успешного запроса к БД
+    switch cacheEngine {
+    case "redis":
         vals := map[string]interface{}{
-            "username":            user.Username,
-            "balance":             user.Balance,
-            "promocode":           user.PromoCode,
-            "clan_id":             user.ClanID,
-            "role":                user.Role,
+            "username": user.Username, 
+            "balance": user.Balance, 
+            "promocode": user.PromoCode,
+            "clan_id": func() uint64 { if user.ClanID != nil { return *user.ClanID }; return 0 }(),
+            "role_id": func() uint64 { if user.RoleID != nil { return *user.RoleID }; return 0 }(),
             "negative_reputation": user.NegativeReputation,
-            "positive_reputation": user.PositiveReputation,
-            "losses":              user.Losses,
-            "wins":                user.Wins,
-            "euro":                user.Euro,
+            "positive_reputation": user.PositiveReputation, 
+            "losses": user.Losses,
+            "wins": user.Wins, 
+            "euro": user.Euro,
         }
         _ = cache.HMSet(key, vals)
         cache.Expire(key, 10*time.Minute)
-    } else {
-        // Локальное файловое кеширование
+    case "local":
         _ = os.MkdirAll("cache", 0755)
-        filename := fmt.Sprintf("cache/user_%d.json", user.ID)
-        _ = os.WriteFile(filename, []byte(fmt.Sprintf("%+v", user)), 0644)
+        filename := fmt.Sprintf("cache/user_%d.json", tgID)
+        fileData, _ := json.Marshal(user)
+        _ = os.WriteFile(filename, fileData, 0644)
     }
 
     return user, nil

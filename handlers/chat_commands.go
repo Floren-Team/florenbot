@@ -33,13 +33,27 @@ func HandleChat(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     case "create":
         {
             user_id := uint64(message.From.ID)
-            newChat := structs.Chat{
-                ID:     uint(db_id), // Сохраняем положительный ID
-                Name:   message.Chat.Title,
-                UserID: int64(user_id),
+            _, err := helpers.GetUser(user_id)
+
+            if err != nil {
+                log.Printf("Ошибка получения юзера: %v", err)
+                bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден"))
+                return
             }
 
-            err := helpers.CreateChat(newChat)
+            // isAdmin := user.Role != nil && (user.Role.Name == "owner" || user.Role.Name == "creator")
+            // if !isAdmin {
+            //     bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+            //     return
+            // }
+
+            newChat := structs.Chat{
+                ID:     uint64(db_id), // Сохраняем положительный ID
+                Name:   message.Chat.Title,
+                UserID: uint64(user_id),
+            }
+
+            err = helpers.CreateChat(newChat)
             if err != nil {
                 log.Printf("Ошибка создания чата: %v", err)
                 bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось создать запись чата"))
@@ -57,7 +71,21 @@ func HandleChat(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
                 return
             }
 
-            if chat.UserID != int64(message.From.ID) {
+            _, err = helpers.GetUser(uint64(chat.UserID))
+
+            if err != nil {
+                log.Printf("Ошибка получения юзера: %v", err)
+                bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден"))
+                return
+            }
+
+            // isAdmin := user.Role != nil && (user.Role.Name == "owner" || user.Role.Name == "creator")
+            // if !isAdmin {
+            //     bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+            //     return
+            // }
+
+            if chat.UserID != uint64(message.From.ID) {
                 bot.Send(tgbotapi.NewMessage(chat_id, "❌ Вы не владелец чата."))
                 return
             }

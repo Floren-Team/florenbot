@@ -7,6 +7,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	structs "florenbot/engine/structs"
+	engine "florenbot/engine/mysql"
 )
 
 
@@ -99,9 +100,9 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         }
         
         newChat := structs.Chat{
-            ID:     uint(db_id),
+            ID:     uint64(db_id),
             Name:   message.Chat.Title,
-            UserID: int64(user_id),
+            UserID: uint64(user_id),
         }
 
         err := helpers.CreateChat(newChat)
@@ -124,7 +125,7 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"Версия: %s\n"+
 		"Дата обновления: %s\n"+
 		"Владелец: %s\n"+
-		"GitHub: https://github.com/Floren-Team/florenbot", consts.VERSION, consts.DATE_LAST_UPDATE, consts.OWNER)))
+		"GitHub: %s", consts.VERSION, consts.DATE_LAST_UPDATE, consts.OWNER, consts.REPO_URL)))
 }
 
 // HandleBalance обрабатывает команду /balance
@@ -145,84 +146,77 @@ func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // HandleProfile обрабатывает команду /profile
 func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	user_id := uint64(message.From.ID)
-	userProfile, err := helpers.GetUserByID(user_id)
-	if err != nil {
-		log.Printf("Ошибка профиля: %v", err)
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
-		return
-	}
+    userID := uint64(message.From.ID)
+    userProfile, err := helpers.GetUserByID(userID)
+    if err != nil {
+        log.Printf("Ошибка профиля: %v", err)
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
+        return
+    }
 
-	negative_reputation := userProfile.NegativeReputation
-	positive_reputation := userProfile.PositiveReputation
+    // 1. Расчет статуса
+    newStatus := 0
+    if userProfile.PositiveReputation >= 10 {
+        newStatus = 3
+    } else if userProfile.PositiveReputation >= 5 {
+        newStatus = 2
+    } else if userProfile.NegativeReputation >= 100 {
+        newStatus = 1
+    }
 
-	total_reputation := negative_reputation + positive_reputation
-	status_text := ""
-	if positive_reputation >= 10 {
-		userProfile.Status = 3
-	} else if positive_reputation >= 5 {
-		userProfile.Status = 2
-	} else if negative_reputation >= 100 {
-		userProfile.Status = 1
-	} else {
-		userProfile.Status = 0
-	}
+    // Обновляем в БД, если статус изменился
+    if userProfile.Status != newStatus {
+        userProfile.Status = newStatus
+        engine.DB.Model(&userProfile).Update("status", newStatus)
+    }
 
-	switch userProfile.Status {
-	case 3:
-		status_text = "Отлично"
-	case 2:
-		status_text = "Хорошо"
-	case 1:
-		status_text = "Плохо"
-	default:
-		status_text = "Неизвестно"
-	}
+    // 2. Определение текста статуса
+    statusTexts := map[int]string{
+        3: "Отлично",
+        2: "Хорошо",
+        1: "Плохо",
+        0: "Неизвестно",
+    }
+    statusText := statusTexts[userProfile.Status]
 
-	switch userProfile.Role {
-	case "admin":
-		userProfile.Role = "Администратор"
-	case "moderator":
-		userProfile.Role = "Модератор"
-	default:
-		userProfile.Role = "Пользователь"
-	}
+    // 3. Определение роли (теперь берем из структуры Role, если она подгружена)
+    roleName := "Пользователь"
+    // if userProfile.Role != nil {
+    //     // Предположим, у вас есть поле Name в структуре Role
+    //     roleName = userProfile.Role.Name 
+    // }
 
-	total_wins := userProfile.Wins
-	total_losses := userProfile.Losses
-	total_games := total_wins + total_losses
+    // 4. Расчет статистики
+    totalReputation := userProfile.NegativeReputation + userProfile.PositiveReputation
+    totalGames := userProfile.Wins + userProfile.Losses
 
-	text := fmt.Sprintf("👤 **Это `%s`:**\n"+
-		"└── **Баланс:** `%.2f` $ 🪙\n"+
-		"└── **Евро:** `%.2f` € 🪙\n"+
-		"└── **Floren Coin:** `%.2f` монет 🪙\n"+
-		"└── **Негативных репутации:** `%d`\n"+
-		"└── **Роль:** `%s`\n"+
-		"└── **Позитивных репутации:** `%d`\n\n"+
-		"└── **Всего репутации:** `%d`\n"+
-		"└── **Проигранных игр:** `%d`\n"+
-		"└── **Выигранных игр:** `%d`\n"+
-		"└── **Всего игр:** `%d`\n"+
-		"└── **Статус:** %s\n"+
+    // 5. Формирование сообщения
+    text := fmt.Sprintf("👤 **Профиль `%s`:**\n"+
+        "└── **Баланс:** `%.2f` $\n"+
+        "└── **Евро:** `%.2f` €\n"+
+        "└── **Floren Coin:** `%.2f` монет\n"+
+        "└── **Репутация:** `%d` (поз: %d, нег: %d)\n"+
+        "└── **Роль:** `%s`\n"+
+        "└── **Игры:** %d (Побед: %d, Поражений: %d)\n"+
+        "└── **Статус:** %s\n\n"+
+        "Приятной вам игры в FlorenBot!",
+        userProfile.FirstName,
+        userProfile.Balance,
+        userProfile.Euro,
+        userProfile.FlorenCoin,
+        totalReputation,
+        userProfile.PositiveReputation,
+        userProfile.NegativeReputation,
+        roleName,
+        totalGames,
+        userProfile.Wins,
+        userProfile.Losses,
+        statusText,
+    )
 
-		"Приятной вам игры в FlorenBot!",
-		message.From.FirstName,
-		userProfile.Balance,
-		userProfile.Euro,
-		userProfile.FlorenCoin,
-		userProfile.NegativeReputation,
-		userProfile.Role,
-		userProfile.PositiveReputation,
-		total_reputation,
-		userProfile.Losses,
-		userProfile.Wins,
-		total_games,
-		status_text,
-	)
-
-	msg := tgbotapi.NewMessage(message.Chat.ID, text)
-	msg.ParseMode = "Markdown"
-	bot.Send(msg)
+    msg := tgbotapi.NewMessage(message.Chat.ID, text)
+    msg.ParseMode = "Markdown"
+    bot.Send(msg)
 }
 
 func HandleQuit(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {

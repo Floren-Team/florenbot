@@ -179,6 +179,14 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleReport(bot, message)
 	case "спасибо":
 		handlers.HandleThanks(bot, message)
+	case "ban":
+		admin_handlers.HandleBan(bot, message)
+	case "mute":
+		admin_handlers.HandleMute(bot, message)
+	case "unmute":
+		admin_handlers.HandleUnMute(bot, message)
+	case "del":
+		admin_handlers.HandleDeleteMessage(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}
