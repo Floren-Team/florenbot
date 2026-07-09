@@ -1,7 +1,7 @@
 package consts
 
-const VERSION = "7.0"
+const VERSION = "7.1 (DEV beta)"
 
-const DATE_LAST_UPDATE = "08.07.2026"
+const DATE_LAST_UPDATE = "09.07.2026"
 
 const OWNER = "Egor Luchiy"

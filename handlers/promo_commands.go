@@ -101,16 +101,13 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
             return
         }
 
-        // ПЕРЕВІРКА: чи існує вже такий код
         _, err = helpers.GetCode(code)
         
-        // Якщо помилки немає — значить код успішно знайдено (отже, він вже існує)
         if err == nil {
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод уже существует"))
             return
         }
 
-        // Якщо помилка НЕ Gorm.ErrRecordNotFound, значить проблема з базою
         if !errors.Is(err, gorm.ErrRecordNotFound) {
             if debug_type {
                 log.Printf("Ошибка БД при проверке кода: %v", err)
@@ -119,7 +116,6 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
             return
         }
 
-        // Якщо ми тут — значить err == gorm.ErrRecordNotFound, код можна створювати
         err = helpers.CreateCode(code, amount, user_id)
         if err != nil {
             if debug_type {
@@ -159,7 +155,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		code := parts[1]
 
-		_, err = helpers.GetCode(code)
+		promo, err := helpers.GetCode(code)
 		if err != nil {
 			if debug_type {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
@@ -173,6 +169,15 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			} else {
 				log.Printf("Ошибка БД при поиске кода: %v", err)
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при запросе к БД"))
+			}
+			return
+		}
+
+		if uint64(promo.OwnerID) != userID {
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не можете удалить этот промокод")
+			msg.ReplyToMessageID = message.MessageID
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("Ошибка отправки уведомления: %v", err)
 			}
 			return
 		}
@@ -291,63 +296,186 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		msg := tgbotapi.NewMessage(message.Chat.ID, sb.String())
 		msg.ParseMode = "Markdown"
 		bot.Send(msg)
-	case "edit":
-		{
-			// 1. Проверка пользователя
-			user_id := uint64(message.From.ID)
-			_, err := helpers.GetUserByID(user_id)
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка получения пользователя: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
-				return
-			}
+	case "edit": {
+        user_id := uint64(message.From.ID)
+        _, err := helpers.GetUserByID(user_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+            return
+        }
 
-			args = message.CommandArguments()
-			parts = strings.Fields(args)
+        args := message.CommandArguments()
+        parts := strings.Fields(args)
 
-			if len(parts) < 2 {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/promo edit [код] [сумма]`"))
-				return
-			}
+        // Учитываем, что parts[0] - подкоманда "edit", если CommandArguments возвращает [edit code amount]
+        if len(parts) < 3 { 
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/promo edit [код] [сумма]`"))
+            return
+        }
 
-			code := parts[0]
-			amount, err := strconv.ParseFloat(parts[1], 64)
-			if err != nil {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/promo edit [код] [сумма]`"))
-				return
-			}
+        code := parts[1]
+        amount, err := strconv.ParseFloat(parts[2], 64)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка: сумма должна быть числом"))
+            return
+        }
 
-			code_db, err := helpers.GetUserCode(user_id)
+        // Проверка владельца: получаем структуру кода из БД
+        promo, err := helpers.GetCode(code) // Предполагается, что функция возвращает структуру с OwnerID
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
+            return
+        }
 
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка при получении кода: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при получении кода"))
-				return
-			}
+        // СРАВНИВАЕМ ВЛАДЕЛЬЦА
+        if uint64(promo.OwnerID) != user_id {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого промокода"))
+            return
+        }
 
-			if code_db != code {
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный код"))
-				return
-			}
+        // Обновляем БД
+        err = helpers.UpdatePromo(code, amount, user_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обновлении"))
+            return
+        }
 
-			// Обновляем БД
-			err = helpers.UpdatePromo(code, amount, user_id)
-			if err != nil {
-				if debug_type {
-					log.Printf("Ошибка обновления БД: %v", err)
-				}
-				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обновлении промокода"))
-				return
-			}
+        msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Промокод *%s* обновлен!\nНовая сумма: *%.2f*", code, amount))
+        msg.ParseMode = "Markdown"
+        bot.Send(msg)
+    }
+	case "expire": {
+        // 1. Проверка пользователя
+        user_id := uint64(message.From.ID)
+        _, err := helpers.GetUserByID(user_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+            return
+        }
 
-			msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Промокод обновлен!\nСумма: %.2f\nНовое имя: %s", amount, code))
-			msg.ParseMode = "Markdown"
-			bot.Send(msg)
+        // Получаем аргументы команды
+        args := message.CommandArguments()
+        parts := strings.Fields(args)
+
+        // ОТЛАДКА: Позволит точно увидеть в консоли, что пришло боту
+        log.Printf("DEBUG: Команда expire, получено частей: %d, аргументы: %v", len(parts), parts)
+
+        // Ожидаем: [код] [время]
+        if len(parts) < 3 { 
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/promo expire [код] [время]`"))
+            return
+        }
+
+        // ВАЖНО: Если вдруг массив содержит лишнее, берем последние два элемента 
+        // или жестко задаем индексы, если уверены в формате
+        code := parts[1]
+        timeStr := parts[2]
+
+
+		promo, err := helpers.GetCode(code)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный код"))
+			return
 		}
+
+		// Проверяем владельца из полученной структуры (вместо второго запроса к БД)
+        if uint64(promo.OwnerID) != user_id {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого кода"))
+            return
+        }
+
+		// ИСПРАВЛЕНО: Проверка, был ли уже установлен срок действия
+        // Если ExpiresAt не "нулевой" (0001-01-01), значит срок уже задан
+        if !promo.ExpiresAt.IsZero() {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У этого промокода уже установлен срок действия"))
+            return
+        }
+
+
+		// ОТЛАДКА: Позволит точно увидеть в консоли, что пришло боту
+		log.Printf("DEBUG: Получен код: %s, время: %s", code, timeStr)
+
+        // Парсим длительность
+        duration, err := std_helpers.ParseDuration(timeStr)
+        if err != nil {
+            // Если парсинг упал, логируем значение, которое привело к ошибке
+            log.Printf("Ошибка парсинга времени [%s]: %v", timeStr, err)
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка формата времени: "+timeStr+"\nИспользуйте формат (d, h, m)\nПример: `1h`, `30d`"))
+            return
+        }
+
+        // Вычисляем время
+        expireTime := time.Now().Add(duration)
+        expiresAtStr := expireTime.Format("2006-01-02 15:04:05")
+
+        // Обновляем БД
+        err = helpers.UpdatePromoExpire(code, expiresAtStr) 
+        if err != nil {
+            log.Printf("Ошибка обновления БД для кода %s: %v", code, err)
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обновлении в базе данных"))
+            return
+        }
+
+        // Успех
+        formattedDatetime := expireTime.Format("02.01.2006 15:04")
+        msgText := fmt.Sprintf("✅ Промокод успешно обновлен!\nКод: *%s*\nСрок действия до: *%s*", code, formattedDatetime)
+        
+        msg := tgbotapi.NewMessage(message.Chat.ID, msgText)
+        msg.ParseMode = "Markdown"
+        bot.Send(msg)
+    }
+    case "delexpire": {
+		user_id := uint64(message.From.ID)
+		_, err := helpers.GetUserByID(user_id)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+			return
+		}
+		
+		args := message.CommandArguments()
+		parts := strings.Fields(args)
+
+		log.Printf("DEBUG: Команда delexpire, аргументы: %v", parts)
+
+		if len(parts) < 2 { 
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/promo delexpire [код]`"))
+			return
+		}
+
+		code := parts[1]
+
+		// Получаем данные промокода
+		promo, err := helpers.GetCode(code)
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
+			return
+		}
+
+		// Проверка владельца
+		if uint64(promo.OwnerID) != user_id {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого кода"))
+			return
+		}
+
+		// Проверка, есть ли срок действия
+		// Метод .IsZero() вернет true, если время равно 0001-01-01 00:00:00
+		if promo.ExpiresAt.IsZero() {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Этот промокод не имеет срока действия"))
+			return
+		}
+
+		// Удаление срока действия
+		err = helpers.DeletePromoExpire(code) 
+		if err != nil {
+			log.Printf("Ошибка удаления срока для кода %s: %v", code, err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении срока в БД"))
+			return
+		}
+
+		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Срок действия промокода *%s* успешно удален!", code))
+		msg.ParseMode = "Markdown"
+		bot.Send(msg)
+	}
 	case "stats":
         count, err := helpers.GetPromocodesMemberCount()
         if err != nil {

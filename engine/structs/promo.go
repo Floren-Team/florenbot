@@ -21,6 +21,10 @@ type UserPromo struct {
 	// CreatedAt — время создания записи (GORM заполняет автоматически)
 	CreatedAt time.Time `json:"created_at"`
 
+
+	// ExpiresAt — время истечения активности промокода
+	ExpiresAt time.Time `gorm:"null;column:expires_at" json:"expires_at"`
+
 	// Owner — связь с моделью User.
 	// Указывает GORM, что поле OwnerID ссылается на модель User
 	Owner User `gorm:"foreignKey:OwnerID"`

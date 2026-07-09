@@ -22,6 +22,15 @@ func CreateCode(code string, amount int, ownerID uint64) error {
 	return engine.DB.Create(&promo).Error
 }
 
+
+func UpdatePromoExpire(code string, expiresAt string) error {
+	return engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Update("expires_at", expiresAt).Error
+}
+
+func DeletePromoExpire(code string) error {
+	return engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Update("expires_at", nil).Error
+}
+
 func GetPromocodesMemberCount() (map[string]int, error) {
     stats := make(map[string]int)
 
@@ -103,4 +112,14 @@ func GetCode(code string) (*structs.UserPromo, error) {
 	var promo structs.UserPromo
 	err := engine.DB.Where("code = ?", code).First(&promo).Error
 	return &promo, err
+}
+
+func GetOwnerIDByCode(code string) (uint64, error) {
+    var ownerID int64
+    // Используем .Model() и .Pluck() для получения значения одной колонки
+    err := engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Pluck("owner_id", &ownerID).Error
+    if err != nil {
+        return 0, err
+    }
+    return uint64(ownerID), nil
 }
