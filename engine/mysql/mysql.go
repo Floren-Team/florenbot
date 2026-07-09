@@ -38,8 +38,8 @@ func ConnectDB() {
 	// 3. Подключаемся и записываем результат в глобальную переменную DB
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-    DisableForeignKeyConstraintWhenMigrating: false, 
-})
+		DisableForeignKeyConstraintWhenMigrating: false,
+	})
 	if err != nil {
 		log.Panicf("Не удалось подключиться к базе данных: %v", err)
 	}
@@ -54,38 +54,46 @@ func ConnectDB() {
 
 // Migrate отвечает за создание и обновление структуры таблиц в БД
 func Migrate(db *gorm.DB) error {
-    // 1. Створюємо незалежні таблиці (фундамент)
-    err := db.AutoMigrate(
-        &structs.Chat{},
-        &structs.Clan{},
-    )
-    if err != nil {
-        return err
-    }
+	// 1. Створюємо незалежні таблиці (фундамент)
+	err := db.AutoMigrate(
+		&structs.Chat{},
+		&structs.Clan{},
+	)
+	if err != nil {
+		return err
+	}
 
-    err = db.AutoMigrate(
-        &structs.Role{},
-    )
-    if err != nil {
-        return err
-    }
+	err = db.AutoMigrate(
+		&structs.Role{},
+	)
+	if err != nil {
+		return err
+	}
 
-    err = db.AutoMigrate(
-        &structs.User{},
-    )
-    if err != nil {
-        return err
-    }
+	err = db.AutoMigrate(
+		&structs.Member{},
+	)
+	if err != nil {
+		return err
+	}
 
-    // 4. Створюємо всі інші залежні таблиці (залежать від Користувача або Клану)
-    return db.AutoMigrate(
-        &structs.UserPromo{},
-        &structs.Report{},
-        &structs.Ban{},
-        &structs.ClanMember{},
-        &structs.ClanBlacklist{},
-    )
+	err = db.AutoMigrate(
+		&structs.User{},
+	)
+	if err != nil {
+		return err
+	}
+
+	// 4. Створюємо всі інші залежні таблиці (залежать від Користувача або Клану)
+	return db.AutoMigrate(
+		&structs.UserPromo{},
+		&structs.Report{},
+		&structs.Ban{},
+		&structs.ClanMember{},
+		&structs.ClanBlacklist{},
+	)
 }
+
 // GetUserBalance получает баланс пользователя по его ID
 func GetUserBalance(userId uint64) (float64, error) {
 	var balance float64

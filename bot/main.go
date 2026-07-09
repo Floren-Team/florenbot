@@ -16,8 +16,10 @@ import (
 	cache "florenbot/engine/cache"
 	helper "florenbot/engine/helpers"
 	engine "florenbot/engine/mysql"
+	structs "florenbot/engine/structs"
 	"florenbot/handlers"
 	admin_handlers "florenbot/handlers/admin"
+	"fmt"
 	"runtime"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -31,17 +33,19 @@ func main() {
 	if err != nil {
 		log.Println("env not found, using system environment variables")
 	}
-	verify := flag.Bool("skip", false, "Пропустить проверки хеширования")
+	verify := flag.Bool("skip", false, "Пропустить проверки валидации хеша")
 	version := flag.Bool("version", false, "Версия бота")
 	flag.Parse()
 
 	if *version {
-		log.Printf("Версия: %s", consts.VERSION)
+		fmt.Printf("Версия: %s\n"+
+			"Floren Bot Telegram\n"+
+			"Исходный код: %s\n", consts.VERSION, consts.REPO_URL)
 		os.Exit(0)
 	}
 
 	if *verify {
-		log.Println("⚠️ Пропускаем проверку хеширования (режим --skip)")
+		log.Println("⚠️ Пропускаем проверку валидации хеша (режим --skip)")
 	} else {
 		log.Println("Проверка хеширования...")
 		if err := helpers.CheckHashAndGpg(); err != nil {
@@ -57,7 +61,6 @@ func main() {
 	cache.InitCache()
 	go workers.RunPromoCleanupWorker()
 	go workers.ClanRemoveInviteCodeWorker()
-
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -130,50 +133,30 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	switch command {
 	case "start":
-
 		handlers.HandleStart(bot, message)
-
 	case "balance":
-
 		handlers.HandleBalance(bot, message)
-
 	case "profile":
-
 		handlers.HandleProfile(bot, message)
-
 	case "casino":
-
 		handlers.HandleCasino(bot, message)
 	case "clan":
 		handlers.HandleClan(bot, message)
 	case "roulette":
-
 		handlers.HandleRoulette(bot, message)
-
 	case "bones":
-
 		bones.HandleBones(bot, message)
-
 	case "q":
-
 		handlers.HandleQuit(bot, message)
-
 	case "newsletter":
 		admin_handlers.HandleNewsLetter(bot, message)
-
 	case "chat":
 		handlers.HandleChat(bot, message)
-
 	case "promo":
-
 		handlers.HandlePromo(bot, message)
-
 	case "info":
-
 		handlers.HandleInfo(bot, message)
-
 	case "rep":
-
 		handlers.HandleReputation(bot, message)
 	case "report":
 		handlers.HandleReport(bot, message)
@@ -187,6 +170,18 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleUnMute(bot, message)
 	case "del":
 		admin_handlers.HandleDeleteMessage(bot, message)
+	case "kick":
+		admin_handlers.HandleKick(bot, message)
+	case "staff":
+		admin_handlers.HandleStaff(bot, message)
+	case "setrole":
+		admin_handlers.HandleSetRole(bot, message)
+	case "newrole":
+		admin_handlers.HandleNewRole(bot, message)
+	case "editrole":
+		admin_handlers.HandleEditRole(bot, message)
+	case "delrole":
+		admin_handlers.HandleDeleteRole(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}
@@ -194,10 +189,43 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	for _, newUser := range update.Message.NewChatMembers {
-		user_id := newUser.ID
-		isBanned := helper.IsUserBanned(uint64(user_id))
+		user_id := uint64(newUser.ID)
+		chat_id := uint64(update.Message.Chat.ID)
+
+		// 1. Проверяем бан
+		isBanned := helper.IsUserBanned(user_id)
 		if isBanned {
-			bot.Request(tgbotapi.BanChatMemberConfig{ChatMemberConfig: tgbotapi.ChatMemberConfig{ChatID: update.Message.Chat.ID, UserID: newUser.ID}})
+			bot.Request(tgbotapi.BanChatMemberConfig{
+				ChatMemberConfig: tgbotapi.ChatMemberConfig{
+					ChatID: int64(chat_id),
+					UserID: int64(user_id),
+				},
+			})
+			continue // Если забанен, не добавляем в БД
+		}
+
+		// 2. Добавляем или обновляем пользователя в таблице users
+		// Это нужно, чтобы у нас были актуальные FirstName/Username для отображения
+		user := structs.User{
+			ID:        user_id,
+			FirstName: newUser.FirstName,
+			Username:  newUser.UserName,
+		}
+		engine.DB.Save(&user) // Save создаст запись, если её нет, или обновит, если есть
+
+		// 3. Добавляем запись в таблицу members
+		// Используем FirstOrCreate, чтобы не дублировать запись, если юзер уже есть в этом чате
+		member := structs.Member{
+			ChatID: chat_id,
+			UserID: user_id,
+			RoleID: 2,
+		}
+
+		err := engine.DB.Where(structs.Member{ChatID: chat_id, UserID: user_id}).
+			FirstOrCreate(&member).Error
+
+		if err != nil {
+			log.Printf("Ошибка добавления пользователя в таблицу members: %v", err)
 		}
 	}
 }

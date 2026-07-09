@@ -4,8 +4,8 @@ import (
 	engine "florenbot/engine/mysql"
 	"florenbot/engine/structs"
 	"gorm.io/gorm"
-	"strings"
 	"log"
+	"strings"
 )
 
 // ActivateCode обновляет промокод у пользователя
@@ -23,7 +23,6 @@ func CreateCode(code string, amount int, ownerID uint64) error {
 	return engine.DB.Create(&promo).Error
 }
 
-
 func UpdatePromoExpire(code string, expiresAt string) error {
 	return engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Update("expires_at", expiresAt).Error
 }
@@ -32,44 +31,42 @@ func DeletePromoExpire(code string) error {
 	return engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Update("expires_at", nil).Error
 }
 
-
 func GetPromocodesMemberCount() (map[string]int, error) {
-    stats := make(map[string]int)
+	stats := make(map[string]int)
 
-    // 1. Получаем список уникальных кодов
-    var promoCodes []string
-    err := engine.DB.Model(&structs.UserPromo{}).
-        Distinct("code").
-        Pluck("code", &promoCodes).Error
-    
-    if err != nil {
-        return nil, err
-    }
+	// 1. Получаем список уникальных кодов
+	var promoCodes []string
+	err := engine.DB.Model(&structs.UserPromo{}).
+		Distinct("code").
+		Pluck("code", &promoCodes).Error
 
-    // 2. Для каждого кода считаем количество пользователей
-    for _, code := range promoCodes {
-        cleanCode := strings.TrimSpace(code)
-        if cleanCode == "" {
-            continue
-        }
+	if err != nil {
+		return nil, err
+	}
 
-        var count int64
-        err := engine.DB.Model(&structs.User{}).
-            Where("promocode = ?", cleanCode).
-            Count(&count).Error
-        
-        if err != nil {
-            log.Printf("Ошибка получения количества пользователей для промокода %s: %v", cleanCode, err)
-            continue
-        }
+	// 2. Для каждого кода считаем количество пользователей
+	for _, code := range promoCodes {
+		cleanCode := strings.TrimSpace(code)
+		if cleanCode == "" {
+			continue
+		}
 
-        // 3. Записываем в статистику
-        stats[cleanCode] = int(count)
-    }
-    
-    return stats, nil
+		var count int64
+		err := engine.DB.Model(&structs.User{}).
+			Where("promocode = ?", cleanCode).
+			Count(&count).Error
+
+		if err != nil {
+			log.Printf("Ошибка получения количества пользователей для промокода %s: %v", cleanCode, err)
+			continue
+		}
+
+		// 3. Записываем в статистику
+		stats[cleanCode] = int(count)
+	}
+
+	return stats, nil
 }
-
 
 // GetUserCode получает код пользователя
 func GetUserCode(userID uint64) (string, error) {
@@ -126,11 +123,11 @@ func GetCode(code string) (*structs.UserPromo, error) {
 }
 
 func GetOwnerIDByCode(code string) (uint64, error) {
-    var ownerID int64
-    // Используем .Model() и .Pluck() для получения значения одной колонки
-    err := engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Pluck("owner_id", &ownerID).Error
-    if err != nil {
-        return 0, err
-    }
-    return uint64(ownerID), nil
+	var ownerID int64
+	// Используем .Model() и .Pluck() для получения значения одной колонки
+	err := engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Pluck("owner_id", &ownerID).Error
+	if err != nil {
+		return 0, err
+	}
+	return uint64(ownerID), nil
 }

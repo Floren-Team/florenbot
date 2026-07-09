@@ -1,21 +1,21 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	cache "florenbot/engine/cache"
 	helpers "florenbot/engine/helpers"
+	structs "florenbot/engine/structs"
 	helper "florenbot/helpers"
+	std_helpers "florenbot/helpers"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"log"
-	"strings"
-	"errors"
 	"gorm.io/gorm"
+	"log"
 	"strconv"
-	"context"
+	"strings"
 	"time"
-	std_helpers "florenbot/helpers"
-	"encoding/json"
-	structs "florenbot/engine/structs"
 )
 
 // HandleClan обрабатывает команду /clan
@@ -68,56 +68,56 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	switch action {
 	case "create":
-        {
-            // Пытаемся получить ID клана пользователя
-            _, err := helpers.GetUserClanID(user_id)
+		{
+			// Пытаемся получить ID клана пользователя
+			_, err := helpers.GetUserClanID(user_id)
 
-            // 1. Проверяем: произошла ли ошибка
-            if err != nil {
-                // Если это НЕ "запись не найдена" — значит, это реальная ошибка БД
-                if !errors.Is(err, gorm.ErrRecordNotFound) {
-                    if debug_type {
-                        log.Printf("Ошибка получения клана из БД: %v", err)
-                    }
-                    bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обращении к базе данных"))
-                    return
-                }
-                // Если err == gorm.ErrRecordNotFound, мы просто продолжаем выполнение — пользователь без клана
-            } else {
-                // Если err == nil, значит запись найдена (клан есть)
-                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы уже состоите в клане"))
-                return
-            }
+			// 1. Проверяем: произошла ли ошибка
+			if err != nil {
+				// Если это НЕ "запись не найдена" — значит, это реальная ошибка БД
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					if debug_type {
+						log.Printf("Ошибка получения клана из БД: %v", err)
+					}
+					bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обращении к базе данных"))
+					return
+				}
+				// Если err == gorm.ErrRecordNotFound, мы просто продолжаем выполнение — пользователь без клана
+			} else {
+				// Если err == nil, значит запись найдена (клан есть)
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы уже состоите в клане"))
+				return
+			}
 
-            // ... далее ваш код создания клана (баланс, проверка формата и т.д.)
-            user_id := uint64(message.From.ID)
-            balance, err := cache.GetBalance(user_id, message.From.UserName)
-            if err != nil {
-                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
-                return
-            }
+			// ... далее ваш код создания клана (баланс, проверка формата и т.д.)
+			user_id := uint64(message.From.ID)
+			balance, err := cache.GetBalance(user_id, message.From.UserName)
+			if err != nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+				return
+			}
 
-            if balance < 1000 {
-                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 1000 рублей"))
-                return
-            }
+			if balance < 1000 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Недостаточно средств. Необходимо 1000 рублей"))
+				return
+			}
 
-            if len(parts) < 2 {
-                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /clan create [имя]"))
-                return
-            }
+			if len(parts) < 2 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: /clan create [имя]"))
+				return
+			}
 
-            // ... создание клана
-            name := strings.Join(parts[1:], " ")
-            err = helpers.CreateClan(name, message.From.FirstName, user_id)
-            if err != nil {
-                bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать клан"))
-                return
-            }
+			// ... создание клана
+			name := strings.Join(parts[1:], " ")
+			err = helpers.CreateClan(name, message.From.FirstName, user_id)
+			if err != nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось создать клан"))
+				return
+			}
 
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Клан создан: %s", name)))
-            return
-        }
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Клан создан: %s", name)))
+			return
+		}
 	case "getrole":
 		{
 			_, err := helpers.GetUserClanID(user_id)
@@ -632,14 +632,13 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 
 			_, err = helpers.GetClanInviteCode(clan_id)
-			if err != nil  {
+			if err != nil {
 				if debug_type {
 					log.Printf("Ошибка при создании приглашения: %v", err)
 				}
 				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
 				return
 			}
-			
 
 			invite_code := helper.GenerateCode()
 			err = helpers.CreateInviteCode(clan_id, invite_code)
@@ -653,180 +652,179 @@ func HandleClan(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			}
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Ваш код приглашения: `%s`, скиньте его своим участникам: /clan invite %s", invite_code, invite_code)))
 		}
-	case "expirecode": {
-		if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan expirecode недоступна в группах"))
-		}
-
-		args := message.CommandArguments()
-        parts := strings.Fields(args)
-
-        // 1. Проверяем, что есть хотя бы подкоманда (индекс 0) и аргумент времени (индекс 1)
-        if len(parts) < 2 {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/clan expirecode [время]`"))
-            return
-        }
-
-        // Теперь безопасно обращаться к индексу 1
-        rawDuration := parts[1]
-        log.Println("Получил действие: ", parts[0], " время: ", rawDuration)
-
-        duration, err := std_helpers.ParseDuration(rawDuration)
-        if err != nil {
-            if debug_type {
-                log.Printf("Error: %v", err)
-            }
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверное время! Используйте: `/clan expirecode [время]`"))
-            return
-        }
-
-		clan_id, err := helpers.GetUserClanID(user_id)
-		if err != nil {
-			if debug_type {
-				log.Printf("Ошибка при удалении клана: %v", err)
+	case "expirecode":
+		{
+			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan expirecode недоступна в группах"))
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
-			return
-		}
 
-		role, err := helpers.GetUserClanRole(user_id)
-		if err != nil {
-			if debug_type {
-				log.Printf("Ошибка при удалении клана: %v", err)
+			args := message.CommandArguments()
+			parts := strings.Fields(args)
+
+			// 1. Проверяем, что есть хотя бы подкоманда (индекс 0) и аргумент времени (индекс 1)
+			if len(parts) < 2 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат! Используйте: `/clan expirecode [время]`"))
+				return
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
-			return
-		}
 
-		if role != "owner" && role != "admin" {
-			if debug_type {
-				log.Printf("Ошибка при удалении клана: %v", err)
+			// Теперь безопасно обращаться к индексу 1
+			rawDuration := parts[1]
+			log.Println("Получил действие: ", parts[0], " время: ", rawDuration)
+
+			duration, err := std_helpers.ParseDuration(rawDuration)
+			if err != nil {
+				if debug_type {
+					log.Printf("Error: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверное время! Используйте: `/clan expirecode [время]`"))
+				return
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
-			return
-		}
 
-		code, err := helpers.GetClanInviteCode(clan_id)
-		if err != nil {
-			if debug_type {
-				log.Printf("Ошибка при создании приглашения: %v", err)
+			clan_id, err := helpers.GetUserClanID(user_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				return
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-			return
-		}
 
-		if code == "" {
-			if debug_type {
-				log.Printf("Ошибка при создании приглашения: %v", err)
+			role, err := helpers.GetUserClanRole(user_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				return
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У клана нет приглашения"))
-			return
-		}
 
-	
-		_, err = helpers.GetClanInviteCode(clan_id)
-
-		if err != nil {
-			if debug_type {
-				log.Printf("Ошибка при удалении клана: %v", err)
+			if role != "owner" && role != "admin" {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
+				return
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
-			return
+
+			code, err := helpers.GetClanInviteCode(clan_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при создании приглашения: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				return
+			}
+
+			if code == "" {
+				if debug_type {
+					log.Printf("Ошибка при создании приглашения: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У клана нет приглашения"))
+				return
+			}
+
+			_, err = helpers.GetClanInviteCode(clan_id)
+
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении клана: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Что то пошло не так..."))
+				return
+			}
+
+			timerData := structs.ClanInviteTimer{
+				ClanID: int64(clan_id),
+				UserID: int64(user_id),
+			}
+			data, _ := json.Marshal(timerData)
+
+			redisKey := "clan_invite:" + strconv.FormatInt(int64(clan_id), 10)
+			err = cache.GetRedis().Set(context.Background(), redisKey, data, duration).Err()
+			if err != nil {
+				log.Printf("Ошибка записи в Redis: %v", err)
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы таймера"))
+				return
+			}
+
+			expireTime := time.Now().Add(duration)
+			expiresAtStr := expireTime.Format("2006-01-02 15:04:05")
+
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Приглашение будет удалено через %s\nОтменить: /clan delexpire", expiresAtStr)))
 		}
+	case "delexpire":
+		{
+			// 1. Проверка на группы с обязательным return
+			if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan delexpire недоступна в группах"))
+				return // Обязательно выходим, чтобы код не шел дальше
+			}
 
+			// 2. Получение ID клана
+			clan_id, err := helpers.GetUserClanID(user_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при получении клана: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
+				return
+			}
 
-		timerData := structs.ClanInviteTimer{
-			ClanID: int64(clan_id),
-			UserID: int64(user_id),
+			// 3. Проверка роли
+			role, err := helpers.GetUserClanRole(user_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при проверке роли: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка проверки прав"))
+				return
+			}
+
+			if role != "owner" && role != "admin" {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
+				return
+			}
+
+			// 4. Проверка существования приглашения в БД
+			code, err := helpers.GetClanInviteCode(clan_id)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при получении кода приглашения: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет активного приглашения"))
+				return
+			}
+
+			if code == "" {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У клана нет приглашения"))
+				return
+			}
+
+			// 5. Удаление таймера из Redis
+			redisKey := "clan_invite:" + strconv.FormatInt(int64(clan_id), 10)
+
+			// Получаем клиент Redis через функцию из пакета cache
+			rdb := cache.GetRedis()
+			if rdb == nil {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка: Redis недоступен"))
+				return
+			}
+
+			deletedCount, err := rdb.Del(context.Background(), redisKey).Result()
+			if err != nil {
+				log.Printf("Ошибка при работе с Redis: %v", err)
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы таймера"))
+				return
+			}
+
+			// 6. Обработка результата удаления
+			if deletedCount == 0 {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нет активного таймера. Пожалуйста, инициализируйте его через: /clan expirecode [время]"))
+				return
+			}
+
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Срок действия приглашения успешно удален"))
 		}
-		data, _ := json.Marshal(timerData)
-
-		redisKey := "clan_invite:" + strconv.FormatInt(int64(clan_id), 10)
-		err = cache.GetRedis().Set(context.Background(), redisKey, data, duration).Err()
-		if err != nil {
-			log.Printf("Ошибка записи в Redis: %v", err)
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы таймера"))
-			return
-		}
-
-		expireTime := time.Now().Add(duration)
-		expiresAtStr := expireTime.Format("2006-01-02 15:04:05")
-
-
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Приглашение будет удалено через %s\nОтменить: /clan delexpire", expiresAtStr)))
-	}
-	case "delexpire": {
-        // 1. Проверка на группы с обязательным return
-        if message.Chat.Type == "supergroup" || message.Chat.Type == "group" {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Команда /clan delexpire недоступна в группах"))
-            return // Обязательно выходим, чтобы код не шел дальше
-        }   
-
-        // 2. Получение ID клана
-        clan_id, err := helpers.GetUserClanID(user_id)
-        if err != nil {
-            if debug_type {
-                log.Printf("Ошибка при получении клана: %v", err)
-            }
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не состоите в клане"))
-            return
-        }
-
-        // 3. Проверка роли
-        role, err := helpers.GetUserClanRole(user_id)
-        if err != nil {
-            if debug_type {
-                log.Printf("Ошибка при проверке роли: %v", err)
-            }
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка проверки прав"))
-            return
-        }
-
-        if role != "owner" && role != "admin" {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец/админ клана"))
-            return
-        }
-
-        // 4. Проверка существования приглашения в БД
-        code, err := helpers.GetClanInviteCode(clan_id)
-        if err != nil {
-            if debug_type {
-                log.Printf("Ошибка при получении кода приглашения: %v", err)
-            }
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет активного приглашения"))
-            return
-        }
-
-        if code == "" {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У клана нет приглашения"))
-            return
-        }
-
-        // 5. Удаление таймера из Redis
-        redisKey := "clan_invite:" + strconv.FormatInt(int64(clan_id), 10)
-        
-        // Получаем клиент Redis через функцию из пакета cache
-        rdb := cache.GetRedis()
-        if rdb == nil {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка: Redis недоступен"))
-            return
-        }
-
-        deletedCount, err := rdb.Del(context.Background(), redisKey).Result()
-        if err != nil {
-            log.Printf("Ошибка при работе с Redis: %v", err)
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы таймера"))
-            return
-        }
-
-        // 6. Обработка результата удаления
-        if deletedCount == 0 {
-            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нет активного таймера. Пожалуйста, инициализируйте его через: /clan expirecode [время]"))
-            return
-        }
-
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Срок действия приглашения успешно удален"))
-    }
 	case "leave":
 		{
 			// 1. Ищем клан, в котором состоит пользователь (как участник)
