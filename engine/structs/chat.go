@@ -9,5 +9,4 @@ type Chat struct {
     CreatedAt time.Time `json:"created_at"`
     Roles     []Role    `gorm:"foreignKey:ChatID"`
 
-	User      User      `gorm:"foreignKey:UserID;references:ID;constraint:false" json:"-"`
 }	

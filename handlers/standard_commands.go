@@ -178,20 +178,17 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         0: "Неизвестно",
     }
     statusText := statusTexts[userProfile.Status]
-
-    // 3. Определение роли (теперь берем из структуры Role, если она подгружена)
     roleName := "Пользователь"
-    // if userProfile.Role != nil {
-    //     // Предположим, у вас есть поле Name в структуре Role
-    //     roleName = userProfile.Role.Name 
-    // }
+    if userProfile.RoleID != nil && userProfile.Role.ID != 0 {
+        roleName = userProfile.Role.Name 
+    }
 
     // 4. Расчет статистики
     totalReputation := userProfile.NegativeReputation + userProfile.PositiveReputation
     totalGames := userProfile.Wins + userProfile.Losses
 
     // 5. Формирование сообщения
-    text := fmt.Sprintf("👤 **Профиль `%s`:**\n"+
+  text := fmt.Sprintf("👤 **Профиль `%s`:**\n"+
         "└── **Баланс:** `%.2f` $\n"+
         "└── **Евро:** `%.2f` €\n"+
         "└── **Floren Coin:** `%.2f` монет\n"+
@@ -200,18 +197,18 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         "└── **Игры:** %d (Побед: %d, Поражений: %d)\n"+
         "└── **Статус:** %s\n\n"+
         "Приятной вам игры в FlorenBot!",
-        userProfile.FirstName,
-        userProfile.Balance,
-        userProfile.Euro,
-        userProfile.FlorenCoin,
-        totalReputation,
-        userProfile.PositiveReputation,
-        userProfile.NegativeReputation,
-        roleName,
-        totalGames,
-        userProfile.Wins,
-        userProfile.Losses,
-        statusText,
+        userProfile.FirstName,        // %s
+        userProfile.Balance,          // %.2f
+        userProfile.Euro,             // %.2f
+        userProfile.FlorenCoin,       // %.2f
+        totalReputation,              // %d
+        userProfile.PositiveReputation, // %d
+        userProfile.NegativeReputation, // %d
+        roleName,                     // %s
+        totalGames,                   // %d
+        userProfile.Wins,             // %d
+        userProfile.Losses,           // %d
+        statusText,                   // %s
     )
 
     msg := tgbotapi.NewMessage(message.Chat.ID, text)

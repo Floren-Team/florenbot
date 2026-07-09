@@ -18,6 +18,8 @@ type User struct {
 	Euro       float64 `gorm:"default:17800" json:"euro"`
 
 	RoleID    *uint64   `gorm:"type:bigint unsigned" json:"role_id"`
+	Role      Role      `gorm:"foreignKey:RoleID;references:ID"`
+
     ClanID    *uint64   `gorm:"type:bigint unsigned" json:"clan_id"`
 
 	PromoCode string `gorm:"column:promocode;size:32" json:"promocode"`
