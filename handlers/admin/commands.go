@@ -8,8 +8,46 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strconv"
+	engine "florenbot/engine/mysql"
 	"strings"
 )
+
+
+func HandleRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+
+	// 1. Получаем данные чата
+	chat, err := helpers.GetChatById(int64(parsed_chat_id))
+	if err != nil {
+		log.Printf("Ошибка получения чата: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
+		return
+	}
+
+	// 2. Получаем список всех ролей в чате
+	roles, err := helpers.GetRolesByChatID(uint64(parsed_chat_id))
+	if err != nil {
+		log.Printf("Ошибка получения ролей: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка загрузки ролей."))
+		return
+	}
+
+	// 3. Формируем текст сообщения
+
+	// Заголовок сообщения
+	text := fmt.Sprintf("📋 **Профиль чата:** `%s`\n\n", chat.Name)
+
+	// Список ролей
+	for _, role := range roles {
+		text += fmt.Sprintf("🆔 **ID:** `%d`\n👤 **Название:** `%s`\nСистемное имя: %s\nКороткое имя: %s\n\n", role.ID, role.Name, role.BaseShort, role.ShortName)
+	}
+	msg := tgbotapi.NewMessage(chat_id, text)
+	msg.ParseMode = "Markdown"
+
+	// Отправляем сообщение
+	bot.Send(msg)
+}
 
 func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chat_id := message.Chat.ID
@@ -79,67 +117,61 @@ func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // HandleSetRole обрабатывает команду /setrole <username> <role_id>
 func HandleSetRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	chat_id := message.Chat.ID
+    chat_id := message.Chat.ID
+    db_id := uint64(chat_id)
+    if chat_id < 0 {
+        db_id = uint64(-chat_id)
+    }
 
-	searchId := uint64(chat_id)
-	if searchId > 0x8000000000000000 {
-		searchId = uint64(-chat_id)
-	}
+    // 1. Проверяем аргументы команды
+    args := strings.Fields(message.CommandArguments())
+    if len(args) < 2 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат! Используйте: `/setrole [username] [role_id]`"))
+        return
+    }
 
-	chat, err := helpers.GetChatById(int64(searchId))
-	if err != nil {
-		log.Printf("Ошибка получения чата: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
-		return
-	}
+    // 2. Ищем целевого пользователя
+    username, err := std_helpers.ParseTelegramUsername(args[0])
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат юзернейма."))
+        return
+    }
 
-	user, err := helpers.GetUserByID(uint64(message.From.ID))
-	if err != nil {
-		log.Printf("Ошибка получения юзера: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
-		return
-	}
+    targetUserID := helpers.GetUserIDByUsername(username)
+    if targetUserID == 0 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь с таким username не найден."))
+        return
+    }
 
-	args := strings.Fields(message.CommandArguments())
-	if len(args) < 2 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат! Используйте: `/setrole [username] [role_id]`"))
-		return
-	}
+    // 3. Проверка прав администратора (ищем роль отправителя в текущем чате)
+    var senderMember structs.Member
+    err = engine.DB.Preload("Role").
+        Where("user_id = ? AND chat_id = ?", message.From.ID, db_id).
+        First(&senderMember).Error
 
-	username, err := std_helpers.ParseTelegramUsername(args[0])
-	if err != nil {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат юзернейма."))
-		return
-	}
+    isAdmin := err == nil && (senderMember.Role.ShortName == "owner" || senderMember.Role.ShortName == "creator")
+    if !isAdmin {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав администратора в этом чате."))
+        return
+    }
 
-	targetUserID := int64(helpers.GetUserIDByUsername(username))
-	if targetUserID == 0 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь с таким username не найден в базе."))
-		return
-	}
+    // 4. Парсинг ID роли
+    roleID, err := strconv.ParseUint(args[1], 10, 64)
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат ID роли."))
+        return
+    }
 
-	currentRole := user.Role
-	isAdmin := currentRole != nil && (currentRole.Name == "owner" || currentRole.Name == "creator")
+    // 5. Установка роли через обновленную функцию AddMemberRole (которую мы делали ранее)
+    // Используем `baseShort` (ShortName) или меняем логику, чтобы принимать сразу ID роли
+    err = helpers.SetMemberRole(targetUserID, roleID, db_id)
+    if err != nil {
+        log.Printf("Ошибка установки роли: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при сохранении роли в БД."))
+        return
+    }
 
-	if !isAdmin {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
-		return
-	}
-
-	roleID, err := strconv.Atoi(args[1])
-	if err != nil {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат ID роли."))
-		return
-	}
-
-	err = helpers.SetRole(uint64(targetUserID), uint64(roleID), uint64(chat.ID))
-	if err != nil {
-		log.Printf("Ошибка установки роли: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка установки роли."))
-		return
-	}
-
-	bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль пользователя %s установлена на %d.", username, roleID)))
+    bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль пользователя %s успешно установлена.", username)))
 }
 
 // HandleNewRole — создание новой роли в чате

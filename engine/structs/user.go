@@ -17,8 +17,6 @@ type User struct {
 	FlorenCoin float64 `gorm:"default:300000" json:"floren_coin"`
 	Euro       float64 `gorm:"default:17800" json:"euro"`
 
-	RoleID *uint64 `gorm:"type:bigint unsigned" json:"role_id"`
-	Role   *Role   `gorm:"foreignKey:RoleID;references:ID"`
 
 	ClanID *uint64 `gorm:"type:bigint unsigned" json:"clan_id"`
 

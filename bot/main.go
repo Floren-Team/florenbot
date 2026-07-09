@@ -150,8 +150,6 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleQuit(bot, message)
 	case "newsletter":
 		admin_handlers.HandleNewsLetter(bot, message)
-	case "chat":
-		handlers.HandleChat(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
 	case "info":
@@ -180,6 +178,10 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleNewRole(bot, message)
 	case "editrole":
 		admin_handlers.HandleEditRole(bot, message)
+	case "help":
+		handlers.HandleHelp(bot, message)
+	case "roles":
+		admin_handlers.HandleRoles(bot, message)
 	case "delrole":
 		admin_handlers.HandleDeleteRole(bot, message)
 	default:

@@ -9,6 +9,8 @@ type Member struct {
 	ChatID    uint64    `gorm:"index;not null" json:"chat_id"`
 	UserID    uint64    `gorm:"index;not null" json:"user_id"`
 	RoleID    uint64    `gorm:"index;not null" json:"role_id"`
+	Role   *Role   `gorm:"foreignKey:RoleID;references:ID"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
