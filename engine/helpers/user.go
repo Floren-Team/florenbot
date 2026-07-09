@@ -29,6 +29,12 @@ func IsUserBanned(userID uint64) bool {
 	return count > 0
 }
 
+func GetUser(userID uint64) (*structs.User, error) {
+    var user structs.User
+    err := engine.DB.Select("first_name").Where("id = ?", userID).First(&user).Error
+    return &user, err
+}
+
 // GetUserByID получает пользователя из кеша или БД
 func GetUserByID(tgID uint64) (structs.User, error) {
     var user structs.User

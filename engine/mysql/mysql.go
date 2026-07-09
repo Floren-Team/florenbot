@@ -58,6 +58,7 @@ func Migrate(db *gorm.DB) error {
         &structs.UserPromo{},
         &structs.Report{},
         &structs.Chat{},
+		&structs.Ban{},
         &structs.ClanMember{},
         &structs.ClanBlacklist{},
     )

@@ -6,11 +6,12 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
+	structs "florenbot/engine/structs"
 )
 
-// HandleStart обрабатывает команду /start
-func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	user_id := uint64(message.From.ID)
+
+
+func HandleProfilePrivate(user_id uint64, bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	userProfile, err := helpers.GetUserByID(user_id)
 	debug_type := GetEnvBool("DEBUG", false)
 	if debug_type {
@@ -76,6 +77,46 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
+
+}
+
+func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    chat_type := message.Chat.Type
+
+    switch chat_type {
+    case "private":
+        // Вызываем функцию для приватного чата
+        HandleProfilePrivate(uint64(message.From.ID), bot, message)
+
+    case "group", "supergroup":
+        // Логика регистрации чата
+        user_id := uint64(message.From.ID)
+        chat_id := message.Chat.ID
+
+        db_id := chat_id
+        if db_id < 0 {
+            db_id = -db_id
+        }
+        
+        newChat := structs.Chat{
+            ID:     uint(db_id),
+            Name:   message.Chat.Title,
+            UserID: int64(user_id),
+        }
+
+        err := helpers.CreateChat(newChat)
+        if err != nil {
+            log.Printf("Ошибка создания чата: %v", err)
+            bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось создать запись чата"))
+            return
+        }
+
+        bot.Send(tgbotapi.NewMessage(chat_id, "✅ Чат успешно зарегистрирован!"))
+
+    default:
+        // Если тип чата не определен
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестный тип чата."))
+    }
 }
 
 func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -193,7 +234,7 @@ func HandleQuit(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		},
 	}
 
-	// Оголошуємо err перед використанням
+	// Пытаемся кикнуть пользователя
 	_, err := bot.Request(kickConfig)
 	if err != nil {
 		log.Printf("Ошибка кика: %v", err)

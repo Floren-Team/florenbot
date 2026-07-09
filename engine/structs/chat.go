@@ -14,7 +14,7 @@ type Chat struct {
 
 	// UserID — внешний ключ, ссылающийся на пользователя.
 	// unique: true гарантирует, что у одного пользователя только один чат (как в вашем SQL).
-	UserID int64 `gorm:"not null;uniqueIndex" json:"user_id"`
+	UserID int64 `gorm:"not null;uniqueIndex;column:owner_id" json:"owner_id"`
 
 	// CreatedAt — время создания, заполняется автоматически.
 	CreatedAt time.Time `json:"created_at"`
