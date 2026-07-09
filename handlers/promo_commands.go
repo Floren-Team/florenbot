@@ -61,7 +61,7 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 	}
 
-	var availableActions = []string{"active", "create", "delete", "list", "stats"}
+	var availableActions = []string{"active", "create", "delete", "list", "stats", "delexpire", "expire"}
 
 	if len(parts) < 1 {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Введите действие\nИспользуйте: /promo create [код] [сумма]\nАктивация промокода: /promo active [код]\nВсе действия: "+strings.Join(availableActions[:], ", ")))
@@ -456,6 +456,15 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		if promo.ExpiresAt.IsZero() {
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Этот промокод не имеет срока действия"))
 			return
+		}
+
+		// Удаление из Redis
+		redisKey := "promo_expire:" + code
+		cacheRedis := cache.GetRedis()
+		err = cacheRedis.Del(context.Background(), redisKey).Err()
+		if err != nil {
+			log.Printf("Ошибка удаления из Redis для кода %s: %v", code, err)
+			// Не прерываем, так как в БД уже обновили, но логируем
 		}
 
 		// Удаление срока действия
