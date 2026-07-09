@@ -22,6 +22,8 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
+
+	"florenbot/workers"
 )
 
 func main() {
@@ -53,6 +55,7 @@ func main() {
 
 	engine.ConnectDB()
 	cache.InitCache()
+	go workers.RunPromoCleanupWorker()
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {

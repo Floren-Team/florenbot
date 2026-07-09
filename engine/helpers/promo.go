@@ -5,6 +5,7 @@ import (
 	"florenbot/engine/structs"
 	"gorm.io/gorm"
 	"strings"
+	"log"
 )
 
 // ActivateCode обновляет промокод у пользователя
@@ -31,34 +32,44 @@ func DeletePromoExpire(code string) error {
 	return engine.DB.Model(&structs.UserPromo{}).Where("code = ?", code).Update("expires_at", nil).Error
 }
 
+
 func GetPromocodesMemberCount() (map[string]int, error) {
     stats := make(map[string]int)
 
-    type Result struct {
-        Code  string
-        Total int
-    }
-    var results []Result
-
+    // 1. Получаем список уникальных кодов
+    var promoCodes []string
     err := engine.DB.Model(&structs.UserPromo{}).
-        Select("code, count(*) as total").
-        Where("code IS NOT NULL AND code != ''"). 
-        Group("code").
-        Scan(&results).Error
-
+        Distinct("code").
+        Pluck("code", &promoCodes).Error
+    
     if err != nil {
         return nil, err
     }
 
-    for _, res := range results {
-        cleanCode := strings.TrimSpace(res.Code)
-        if cleanCode != "" {
-            stats[cleanCode] = res.Total
+    // 2. Для каждого кода считаем количество пользователей
+    for _, code := range promoCodes {
+        cleanCode := strings.TrimSpace(code)
+        if cleanCode == "" {
+            continue
         }
+
+        var count int64
+        err := engine.DB.Model(&structs.User{}).
+            Where("promocode = ?", cleanCode).
+            Count(&count).Error
+        
+        if err != nil {
+            log.Printf("Ошибка получения количества пользователей для промокода %s: %v", cleanCode, err)
+            continue
+        }
+
+        // 3. Записываем в статистику
+        stats[cleanCode] = int(count)
     }
     
     return stats, nil
 }
+
 
 // GetUserCode получает код пользователя
 func GetUserCode(userID uint64) (string, error) {

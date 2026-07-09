@@ -14,7 +14,7 @@ import (
 
 	"errors"
 	"gorm.io/gorm"
-
+	"context"
 )
 
 type Promocode struct {
@@ -357,63 +357,57 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         args := message.CommandArguments()
         parts := strings.Fields(args)
 
-        // ОТЛАДКА: Позволит точно увидеть в консоли, что пришло боту
-        log.Printf("DEBUG: Команда expire, получено частей: %d, аргументы: %v", len(parts), parts)
-
-        // Ожидаем: [код] [время]
         if len(parts) < 3 { 
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/promo expire [код] [время]`"))
             return
         }
 
-        // ВАЖНО: Если вдруг массив содержит лишнее, берем последние два элемента 
-        // или жестко задаем индексы, если уверены в формате
         code := parts[1]
         timeStr := parts[2]
 
+        promo, err := helpers.GetCode(code)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный код"))
+            return
+        }
 
-		promo, err := helpers.GetCode(code)
-		if err != nil {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный код"))
-			return
-		}
-
-		// Проверяем владельца из полученной структуры (вместо второго запроса к БД)
         if uint64(promo.OwnerID) != user_id {
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого кода"))
             return
         }
 
-		// ИСПРАВЛЕНО: Проверка, был ли уже установлен срок действия
-        // Если ExpiresAt не "нулевой" (0001-01-01), значит срок уже задан
         if !promo.ExpiresAt.IsZero() {
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У этого промокода уже установлен срок действия"))
             return
         }
 
-
-		// ОТЛАДКА: Позволит точно увидеть в консоли, что пришло боту
-		log.Printf("DEBUG: Получен код: %s, время: %s", code, timeStr)
-
         // Парсим длительность
         duration, err := std_helpers.ParseDuration(timeStr)
         if err != nil {
-            // Если парсинг упал, логируем значение, которое привело к ошибке
-            log.Printf("Ошибка парсинга времени [%s]: %v", timeStr, err)
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка формата времени: "+timeStr+"\nИспользуйте формат (d, h, m)\nПример: `1h`, `30d`"))
             return
         }
 
-        // Вычисляем время
+        // Вычисляем время для БД
         expireTime := time.Now().Add(duration)
         expiresAtStr := expireTime.Format("2006-01-02 15:04:05")
 
-        // Обновляем БД
+        // 1. Обновляем БД
         err = helpers.UpdatePromoExpire(code, expiresAtStr) 
         if err != nil {
             log.Printf("Ошибка обновления БД для кода %s: %v", code, err)
             bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при обновлении в базе данных"))
             return
+        }
+
+        // 2. Добавляем в Redis очередь (TTL)
+        // Используем твой префикс, ключ автоматически удалится через duration
+        redisKey := "promo_expire:" + code
+		cacheRedis := cache.GetRedis()
+        err = cacheRedis.Set(context.Background(), redisKey, code, duration).Err()
+        if err != nil {
+            log.Printf("Ошибка записи в Redis для кода %s: %v", code, err)
+            // Не прерываем, так как в БД уже обновили, но логируем
         }
 
         // Успех
