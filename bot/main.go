@@ -56,6 +56,8 @@ func main() {
 	engine.ConnectDB()
 	cache.InitCache()
 	go workers.RunPromoCleanupWorker()
+	go workers.ClanRemoveInviteCodeWorker()
+
 
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {

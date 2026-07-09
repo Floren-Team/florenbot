@@ -15,6 +15,8 @@ import (
 	"errors"
 	"gorm.io/gorm"
 	"context"
+	"encoding/json"
+	structs "florenbot/engine/structs"
 )
 
 type Promocode struct {
@@ -400,15 +402,21 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
             return
         }
 
-        // 2. Добавляем в Redis очередь (TTL)
-        // Используем твой префикс, ключ автоматически удалится через duration
-        redisKey := "promo_expire:" + code
-		cacheRedis := cache.GetRedis()
-        err = cacheRedis.Set(context.Background(), redisKey, code, duration).Err()
-        if err != nil {
-            log.Printf("Ошибка записи в Redis для кода %s: %v", code, err)
-            // Не прерываем, так как в БД уже обновили, но логируем
-        }
+
+
+       timerData := structs.PromoTimer{
+			UserID: int64(user_id),
+			PromoString: code,
+		}
+		data, _ := json.Marshal(timerData)
+
+		redisKey := "promo_expire:" + code
+		err = cache.GetRedis().Set(context.Background(), redisKey, data, duration).Err()
+		if err != nil {
+			log.Printf("Ошибка записи в Redis: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы таймера"))
+			return
+		}
 
         // Успех
         formattedDatetime := expireTime.Format("02.01.2006 15:04")
@@ -418,67 +426,84 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         msg.ParseMode = "Markdown"
         bot.Send(msg)
     }
-    case "delexpire": {
-		user_id := uint64(message.From.ID)
-		_, err := helpers.GetUserByID(user_id)
-		if err != nil {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
-			return
-		}
-		
-		args := message.CommandArguments()
-		parts := strings.Fields(args)
+   
+	case "delexpire": {
+        user_id := uint64(message.From.ID)
+        
+        // 1. Авторизация
+        _, err := helpers.GetUserByID(user_id)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не авторизованы"))
+            return
+        }
+        
+        // 2. Получение аргументов команды
+        args := message.CommandArguments()
+        parts := strings.Fields(args)
 
-		log.Printf("DEBUG: Команда delexpire, аргументы: %v", parts)
+        if len(parts) < 1 { 
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/promo delexpire [код]`"))
+            return
+        }
 
-		if len(parts) < 2 { 
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неверный формат!\nИспользуйте: `/promo delexpire [код]`"))
-			return
-		}
+        code := parts[0]
 
-		code := parts[1]
+        // 3. Получение данных промокода из БД
+        promo, err := helpers.GetCode(code)
+        if err != nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
+            return
+        }
 
-		// Получаем данные промокода
-		promo, err := helpers.GetCode(code)
-		if err != nil {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Промокод не найден"))
-			return
-		}
+        // 4. Проверка прав владельца
+        if uint64(promo.OwnerID) != user_id {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого кода"))
+            return
+        }
 
-		// Проверка владельца
-		if uint64(promo.OwnerID) != user_id {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не владелец этого кода"))
-			return
-		}
+        // 5. Проверка, есть ли срок действия
+        if promo.ExpiresAt.IsZero() {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Этот промокод не имеет срока действия"))
+            return
+        }
 
-		// Проверка, есть ли срок действия
-		// Метод .IsZero() вернет true, если время равно 0001-01-01 00:00:00
-		if promo.ExpiresAt.IsZero() {
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Этот промокод не имеет срока действия"))
-			return
-		}
+        // 6. Удаление из Redis с использованием составного ключа
+        redisKey := fmt.Sprintf("promo_expire:%s:%d", code, user_id)
+        
+        rdb := cache.GetRedis()
+        if rdb == nil {
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка системы: Redis недоступен"))
+            return
+        }
 
-		// Удаление из Redis
-		redisKey := "promo_expire:" + code
-		cacheRedis := cache.GetRedis()
-		err = cacheRedis.Del(context.Background(), redisKey).Err()
-		if err != nil {
-			log.Printf("Ошибка удаления из Redis для кода %s: %v", code, err)
-			// Не прерываем, так как в БД уже обновили, но логируем
-		}
+        // Удаляем ключ и проверяем результат
+        deletedCount, err := rdb.Del(context.Background(), redisKey).Result()
+        if err != nil {
+            log.Printf("Ошибка удаления из Redis для кода %s: %v", code, err)
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении таймера в системе"))
+            return
+        }
 
-		// Удаление срока действия
-		err = helpers.DeletePromoExpire(code) 
-		if err != nil {
-			log.Printf("Ошибка удаления срока для кода %s: %v", code, err)
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении срока в БД"))
-			return
-		}
+        // 7. Удаление срока действия в БД
+        err = helpers.DeletePromoExpire(code) 
+        if err != nil {
+            log.Printf("Ошибка удаления срока для кода %s: %v", code, err)
+            bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении срока в БД"))
+            return
+        }
 
-		msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Срок действия промокода *%s* успешно удален!", code))
-		msg.ParseMode = "Markdown"
-		bot.Send(msg)
-	}
+        // 8. Формирование ответа
+        responseText := fmt.Sprintf("✅ Срок действия промокода *%s* успешно удален!", code)
+        if deletedCount == 0 {
+            responseText += "\n_(Таймер уже был завершен или не существовал)_"
+        }
+
+        msg := tgbotapi.NewMessage(message.Chat.ID, responseText)
+        msg.ParseMode = "Markdown"
+        bot.Send(msg)
+    }
+
+	
 	case "stats":
         count, err := helpers.GetPromocodesMemberCount()
         if err != nil {
