@@ -11,7 +11,6 @@ import (
 	"log"
 )
 
-
 func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
     user_id := uint64(message.From.ID)
@@ -24,47 +23,43 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     }
 
     info := fmt.Sprintf("👋 Привет! Твоя роль: *%s*\n\n", roleName)
-    info += "📜 *Доступные команды:*\n"
+    info += "📜 *Общие команды:*\n"
     info += "/help — Список команд\n"
     info += "/top — Топ сообщений\n"
 
-
-    // 1. Команды для Модератора (например: бан, мут)
-    if memberRole.ShortName == "moderator" || std_helpers.IsUserAdmin(&memberRole) {
+    // 1. Команды для Модератора
+    if memberRole.ShortName == "moderator" || std_helpers.IsUserAdmin(&memberRole) || std_helpers.IsUserOwnerOrCreator(&memberRole) {
         info += "\n🛡 *Панель модератора:*\n"
         info += "/ban — Ограничить пользователя\n"
         info += "/mute — Запретить общение\n"
-    }
-
-    // 2. Команды для Администратора (управление модераторами)
-    if std_helpers.IsUserAdmin(&memberRole) {
-        info += "\n👮 *Панель администратора:*\n"
-        info += "/ban — Выдать бан\n"
-        info += "/mute выдать мут\n"
         info += "/unmute — Снять мут\n"
-
     }
 
-    // 3. Команды для Владельца и Создателя (полный доступ)
+    // 2. Команды для Администратора (управление ролями)
+    if std_helpers.IsUserAdmin(&memberRole) || std_helpers.IsUserOwnerOrCreator(&memberRole) {
+        info += "\n👮 *Панель администратора:*\n"
+    }
+
+    // 3. Команды для Владельца и Создателя
     if std_helpers.IsUserOwnerOrCreator(&memberRole) {
-        info += "\n👑 *Команды владельца:*\n"
-        info += "/newrole [имя] — Создать роль\n"
+        info += "\n👑 *Панель владельца:*\n"
+        info += "/newrole [имя] [короткое] [служебное] — Создать роль\n"
+        info += "/editrole [ID] [имя] [короткое] — Редактировать роль\n"
         info += "/delrole [ID] — Удалить роль\n"
-        info += "/editcmd [ID] — Изменить доступ к команде пользователя\n"
-        info += "/editrole [ID] [имя] [короткое] — Редактировать\n"
+        info += "/editcmd [ID] — Изменить доступ к команде\n"
     }
 
+    // 4. Команды только для Создателя
     if std_helpers.IsUserCreator(&memberRole) {
-        info += "\n👑 *Команды создателя:*\n"
-        info += "/sysrole - выдать системную роль в беседе\n"
+        info += "\n⚙️ *Системные команды (Creator):*\n"
+        info += "/sysrole — выдать системную роль\n"
     }
-
-    
 
     msg := tgbotapi.NewMessage(message.Chat.ID, info)
     msg.ParseMode = "Markdown"
     bot.Send(msg)
 }
+
 func HandleProfilePrivate(user_id uint64, bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	userProfile, err := helpers.GetOrCreateUser(user_id, message.From.UserName, message.From.FirstName)
 	debug_type := GetEnvBool("DEBUG", false)
