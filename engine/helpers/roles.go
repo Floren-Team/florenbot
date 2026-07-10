@@ -61,20 +61,24 @@ func SetRole(user_id uint64, role_id uint64, chat_id uint64) error {
 }
 
 func InitDefaultRoles(chat_id uint64) error {
+	// Определяем стандартные роли с их приоритетами
+	// Чем выше число, тем выше уровень доступа (права на снятие/изменение)
 	defaultRoles := []structs.Role{
-		{Name: "Создатель", ShortName: "creator", BaseShort: "creator", ChatID: chat_id},
-		{Name: "Владелец", ShortName: "owner", BaseShort: "owner", ChatID: chat_id},
-		{Name: "Администратор", ShortName: "admin", BaseShort: "admin", ChatID: chat_id},
-		{Name: "Модератор", ShortName: "moderator", BaseShort: "moderator", ChatID: chat_id},
-		{Name: "Участник", ShortName: "member", BaseShort: "member", ChatID: chat_id},
+		{Name: "Создатель", ShortName: "creator", BaseShort: "creator", ChatID: chat_id, Priority: 100},
+		{Name: "Владелец", ShortName: "owner", BaseShort: "owner", ChatID: chat_id, Priority: 90},
+		{Name: "Администратор", ShortName: "admin", BaseShort: "admin", ChatID: chat_id, Priority: 50},
+		{Name: "Модератор", ShortName: "moderator", BaseShort: "moderator", ChatID: chat_id, Priority: 20},
+		{Name: "Участник", ShortName: "member", BaseShort: "member", ChatID: chat_id, Priority: 10},
 	}
 
 	for _, role := range defaultRoles {
 		var count int64
+		// Проверяем наличие роли в базе данных
 		engine.DB.Model(&structs.Role{}).
 			Where("short_name = ? AND chat_id = ?", role.ShortName, chat_id).
 			Count(&count)
 
+		// Если роль не найдена, создаем её
 		if count == 0 {
 			if err := engine.DB.Create(&role).Error; err != nil {
 				return err
@@ -157,12 +161,13 @@ func SetMemberRole(userID uint64, roleID uint64, chatID uint64) error {
 	return nil
 }
 
-func CreateRole(name string, short_name string, base_short string, chat_id uint64) error {
+func CreateRole(name string, short_name string, base_short string, chat_id uint64, priority int) error {
 	role := structs.Role{
 		Name:      name,
 		ShortName: short_name,
 		BaseShort: base_short,
 		ChatID:    chat_id,
+		Priority:  priority,
 	}
 	return engine.DB.Save(&role).Error
 }
@@ -171,6 +176,29 @@ func GetRoleByID(roleID uint64, chat_id uint64) (structs.Role, error) {
 	var role structs.Role
 	err := engine.DB.Where("id = ? AND chat_id = ?", roleID, chat_id).First(&role).Error
 	return role, err
+}
+
+func GetRoleByShortName(short_name string, chat_id uint64) (structs.Role, error) {
+	var role structs.Role
+	err := engine.DB.Where("base_short = ? AND chat_id = ?", short_name, chat_id).First(&role).Error
+	return role, err
+}
+
+func RemoveRole(user_id uint64, chat_id uint64) error {
+	// Нахождение ID роли, которую нужно присвоить
+	role, err := GetRoleByShortName("member", chat_id)
+	if err != nil {
+		return err
+	}
+	role_id := role.ID
+
+	data := structs.Member{ChatID: chat_id, UserID: user_id, RoleID: role_id}
+
+	// Обновление записи
+
+	err = engine.DB.Where("chat_id = ? AND user_id = ?", chat_id, user_id).Updates(data).Error
+	return err
+
 }
 
 func DeleteRoleByID(roleID uint64, chat_id uint64) error {

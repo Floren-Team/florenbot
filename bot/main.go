@@ -11,6 +11,7 @@ import (
 	"florenbot/consts"
 	helpers "florenbot/helpers"
 
+
 	"flag"
 	"florenbot/bones"
 	cache "florenbot/engine/cache"
@@ -130,12 +131,24 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	command := strings.ToLower(parts[0][1:])
+	userID := uint64(message.From.ID)
+	chatID := uint64(message.Chat.ID)
+	// 2. ПРОВЕРКА ОГРАНИЧЕНИЙ
+    // Если функция возвращает true — значит, команда запрещена для этого пользователя
+    if helper.IsCommandRestricted(userID, chatID, command) {
+        bot.Send(tgbotapi.NewMessage(int64(chatID), "🚫 Вам запрещено использовать эту команду. Обратитесь к администрации чата."))
+        return
+    }
+
+
 
 	switch command {
 	case "start":
 		handlers.HandleStart(bot, message)
 	case "balance":
 		handlers.HandleBalance(bot, message)
+	case "pin":
+		admin_handlers.HandlePin(bot, message)
 	case "profile":
 		handlers.HandleProfile(bot, message)
 	case "casino":
@@ -148,8 +161,6 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bones.HandleBones(bot, message)
 	case "q":
 		handlers.HandleQuit(bot, message)
-	case "newsletter":
-		admin_handlers.HandleNewsLetter(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
 	case "info":
@@ -166,6 +177,10 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleMute(bot, message)
 	case "unmute":
 		admin_handlers.HandleUnMute(bot, message)
+	case "restrict":
+		admin_handlers.HandleRestrictUserCmd(bot, message)
+	case "rr":
+		admin_handlers.HandleRemoveRole(bot, message)
 	case "del":
 		admin_handlers.HandleDeleteMessage(bot, message)
 	case "kick":

@@ -29,7 +29,6 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	info += "/clan - Управление кланами\n"
 	info += "/promo - Управление промокодами\n"
 
-
 	// 1. Команды для Модератора
 	if memberRole.ShortName == "moderator" || std_helpers.IsUserAdmin(&memberRole) || std_helpers.IsUserOwnerOrCreator(&memberRole) {
 		info += "\n🛡 *Панель модератора:*\n"
@@ -49,7 +48,8 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		info += "/newrole [имя] [короткое] [служебное] — Создать роль\n"
 		info += "/editrole [ID] [имя] [короткое] — Редактировать роль\n"
 		info += "/delrole [ID] — Удалить роль\n"
-		info += "/editcmd [ID] — Изменить доступ к команде\n"
+		info += "/restrict add [command] — Изменить доступ к команде (добавить ограничение)\n"
+		info += "/restrict remove [command] — Удалить ограничение\n"
 	}
 
 	// 4. Команды только для Создателя
