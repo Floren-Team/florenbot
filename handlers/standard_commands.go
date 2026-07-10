@@ -40,12 +40,18 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// 2. Команды для Администратора (управление ролями)
 	if std_helpers.IsUserAdmin(&memberRole) || std_helpers.IsUserOwnerOrCreator(&memberRole) {
 		info += "\n👮 *Панель администратора:*\n"
+		info += "/addmoder - Добавить в модерацию\n"
+		info += "/admins - Список админов\n"
+		info += "/moders - Список модераторов\n"
+
 	}
 
 	// 3. Команды для Владельца и Создателя
 	if std_helpers.IsUserOwnerOrCreator(&memberRole) {
 		info += "\n👑 *Панель владельца:*\n"
 		info += "/newrole [имя] [короткое] [служебное] — Создать роль\n"
+		info += "/addowner - Добавить владельца\n"
+		info += "/addadmin - Добавить администратора\n"
 		info += "/editrole [ID] [имя] [короткое] — Редактировать роль\n"
 		info += "/delrole [ID] — Удалить роль\n"
 		info += "/restrict add [command] — Изменить доступ к команде (добавить ограничение)\n"

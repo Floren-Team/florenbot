@@ -7,7 +7,9 @@ import (
 
 func GetRolesByChatID(chat_id uint64) ([]structs.Role, error) {
 	var roles []structs.Role
-	err := engine.DB.Where("chat_id = ?", chat_id).Find(&roles).Error
+	err := engine.DB.Where("chat_id = ?", chat_id).
+		Order("priority DESC").
+		Find(&roles).Error
 	return roles, err
 }
 
@@ -178,10 +180,58 @@ func GetRoleByID(roleID uint64, chat_id uint64) (structs.Role, error) {
 	return role, err
 }
 
-func GetRoleByShortName(short_name string, chat_id uint64) (structs.Role, error) {
+func GetRoleByBaseShort(short_name string, chat_id uint64) (structs.Role, error) {
 	var role structs.Role
 	err := engine.DB.Where("base_short = ? AND chat_id = ?", short_name, chat_id).First(&role).Error
 	return role, err
+}
+
+func GetRoleByShortName(short_name string, chat_id uint64) (structs.Role, error) {
+	var role structs.Role
+	err := engine.DB.Where("short_name = ? AND chat_id = ?", short_name, chat_id).First(&role).Error
+	return role, err
+}
+
+// GetUsersByRoleID — универсальная функция для получения пользователей по ID роли
+// GetUsersByRoleID — исправленная функция с использованием JOIN
+func GetUsersByRoleID(role_id uint64, chat_id uint64) ([]structs.User, error) {
+	var users []structs.User
+
+	// Используем Join, чтобы обратиться к столбцу role_id в таблице chat_members
+	err := engine.DB.Table("users").
+		Select("users.*").
+		Joins("JOIN chat_members ON chat_members.user_id = users.id").
+		Where("chat_members.role_id = ? AND chat_members.chat_id = ?", role_id, chat_id).
+		Where("users.deleted_at IS NULL").
+		Find(&users).Error
+
+	return users, err
+}
+
+// GetAdminsUsers — получение всех администраторов в чате
+func GetAdminsUsers(chat_id uint64) ([]structs.User, error) {
+	// 1. Сначала ищем саму роль администратора
+	var role structs.Role
+	err := engine.DB.Where("base_short = ? AND chat_id = ?", "admin", chat_id).First(&role).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Получаем пользователей по ID этой роли
+	return GetUsersByRoleID(role.ID, chat_id)
+}
+
+// GetModeratorsUsers — получение всех модераторов в чате
+func GetModeratorsUsers(chat_id uint64) ([]structs.User, error) {
+	// 1. Сначала ищем саму роль модератора
+	var role structs.Role
+	err := engine.DB.Where("base_short = ? AND chat_id = ?", "moderator", chat_id).First(&role).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Получаем пользователей по ID этой роли
+	return GetUsersByRoleID(role.ID, chat_id)
 }
 
 func RemoveRole(user_id uint64, chat_id uint64) error {

@@ -11,7 +11,6 @@ import (
 	"florenbot/consts"
 	helpers "florenbot/helpers"
 
-
 	"flag"
 	"florenbot/bones"
 	cache "florenbot/engine/cache"
@@ -134,13 +133,11 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	userID := uint64(message.From.ID)
 	chatID := uint64(message.Chat.ID)
 	// 2. ПРОВЕРКА ОГРАНИЧЕНИЙ
-    // Если функция возвращает true — значит, команда запрещена для этого пользователя
-    if helper.IsCommandRestricted(userID, chatID, command) {
-        bot.Send(tgbotapi.NewMessage(int64(chatID), "🚫 Вам запрещено использовать эту команду. Обратитесь к администрации чата."))
-        return
-    }
-
-
+	// Если функция возвращает true — значит, команда запрещена для этого пользователя
+	if helper.IsCommandRestricted(userID, chatID, command) {
+		bot.Send(tgbotapi.NewMessage(int64(chatID), "🚫 Вам запрещено использовать эту команду. Обратитесь к администрации чата."))
+		return
+	}
 
 	switch command {
 	case "start":
@@ -199,6 +196,16 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleRoles(bot, message)
 	case "delrole":
 		admin_handlers.HandleDeleteRole(bot, message)
+	case "addowner":
+		admin_handlers.HandleAddOwner(bot, message)
+	case "addadmin":
+		admin_handlers.HandleAddAdmin(bot, message)
+	case "addmoder":
+		admin_handlers.HandleAddModer(bot, message)
+	case "moders":
+		admin_handlers.HandleModers(bot, message)
+	case "admins":
+		admin_handlers.HandleAdmins(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}
