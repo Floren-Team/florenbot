@@ -43,6 +43,7 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		info += "/addmoder - Добавить в модерацию\n"
 		info += "/admins - Список админов\n"
 		info += "/moders - Список модераторов\n"
+		info += "/stats - Статистика\n"
 
 	}
 

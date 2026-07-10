@@ -198,6 +198,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleDeleteRole(bot, message)
 	case "addowner":
 		admin_handlers.HandleAddOwner(bot, message)
+	case "stats":
+		admin_handlers.HandleStats(bot, message)
 	case "addadmin":
 		admin_handlers.HandleAddAdmin(bot, message)
 	case "addmoder":

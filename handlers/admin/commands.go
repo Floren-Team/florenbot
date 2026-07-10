@@ -116,62 +116,62 @@ func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // HandleSetRole обрабатывает команду /setrole <username> <role_id>
 func HandleSetRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    chat_id := message.Chat.ID
-    db_id := std_helpers.ParseChatID(uint64(chat_id))
+	chat_id := message.Chat.ID
+	db_id := std_helpers.ParseChatID(uint64(chat_id))
 
-    args := strings.Fields(message.CommandArguments())
-    
-    var targetUserID uint64
-    var targetUsername string
+	args := strings.Fields(message.CommandArguments())
+
+	var targetUserID uint64
+	var targetUsername string
 	var targetName string
-    var roleID uint64
-    var err error
+	var roleID uint64
+	var err error
 
-    // 1. Определение цели (Reply или Username)
-    if message.ReplyToMessage != nil {
-        targetUserID = uint64(message.ReplyToMessage.From.ID)
-        targetUsername = message.ReplyToMessage.From.UserName
+	// 1. Определение цели (Reply или Username)
+	if message.ReplyToMessage != nil {
+		targetUserID = uint64(message.ReplyToMessage.From.ID)
+		targetUsername = message.ReplyToMessage.From.UserName
 		targetName = message.ReplyToMessage.From.FirstName
-        
-        if len(args) < 1 {
-            bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат! Используйте: `/setrole [role_id]` при ответе на сообщение."))
-            return
-        }
-        
-        roleID, err = strconv.ParseUint(args[0], 10, 64)
-    } else if len(args) >= 2 {
-        targetUsername, err = std_helpers.ParseTelegramUsername(args[0])
-        if err != nil {
-            bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат юзернейма."))
-            return
-        }
-        targetUserID = helpers.GetUserIDByUsername(targetUsername)
-        if targetUserID == 0 {
-            bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь с таким username не найден."))
-            return
-        }
-        roleID, err = strconv.ParseUint(args[1], 10, 64)
-    } else {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Формат: `/setrole [username] [role_id]` или ответьте на сообщение `/setrole [role_id]`"))
-        return
-    }
 
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат ID роли."))
-        return
-    }
+		if len(args) < 1 {
+			bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат! Используйте: `/setrole [role_id]` при ответе на сообщение."))
+			return
+		}
 
-    // 2. Проверка прав администратора
-    var senderMember structs.Member
-    err = engine.DB.Preload("Role").
-        Where("user_id = ? AND chat_id = ?", message.From.ID, db_id).
-        First(&senderMember).Error
+		roleID, err = strconv.ParseUint(args[0], 10, 64)
+	} else if len(args) >= 2 {
+		targetUsername, err = std_helpers.ParseTelegramUsername(args[0])
+		if err != nil {
+			bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат юзернейма."))
+			return
+		}
+		targetUserID = helpers.GetUserIDByUsername(targetUsername)
+		if targetUserID == 0 {
+			bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь с таким username не найден."))
+			return
+		}
+		roleID, err = strconv.ParseUint(args[1], 10, 64)
+	} else {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Формат: `/setrole [username] [role_id]` или ответьте на сообщение `/setrole [role_id]`"))
+		return
+	}
 
-    isAdmin := err == nil && (senderMember.Role.ShortName == "owner" || senderMember.Role.ShortName == "creator")
-    if !isAdmin {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав администратора в этом чате."))
-        return
-    }
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверный формат ID роли."))
+		return
+	}
+
+	// 2. Проверка прав администратора
+	var senderMember structs.Member
+	err = engine.DB.Preload("Role").
+		Where("user_id = ? AND chat_id = ?", message.From.ID, db_id).
+		First(&senderMember).Error
+
+	isAdmin := err == nil && (senderMember.Role.ShortName == "owner" || senderMember.Role.ShortName == "creator")
+	if !isAdmin {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав администратора в этом чате."))
+		return
+	}
 
 	_, err = helpers.GetRoleByID(roleID, uint64(db_id))
 	if err != nil {
@@ -179,24 +179,25 @@ func HandleSetRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-    // 3. Установка роли
-    err = helpers.SetMemberRole(targetUserID, roleID, uint64(db_id))
-    if err != nil {
-        log.Printf("Ошибка установки роли: %v", err)
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при сохранении роли в БД."))
-        return
-    }
+	// 3. Установка роли
+	err = helpers.SetMemberRole(targetUserID, roleID, uint64(db_id))
+	if err != nil {
+		log.Printf("Ошибка установки роли: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при сохранении роли в БД."))
+		return
+	}
 
-    // Формируем красивый вывод, если юзернейм пустой (например, если нет @ в профиле)
-    displayName := targetUsername
-    if displayName == "" {
-        displayName = targetName // Теперь переменная используется!
-    }
-    if displayName == "" {
-        displayName = fmt.Sprintf("%d", targetUserID)
-    }
-    bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль пользователя @%s успешно установлена.", displayName)))
+	// Формируем красивый вывод, если юзернейм пустой (например, если нет @ в профиле)
+	displayName := targetUsername
+	if displayName == "" {
+		displayName = targetName // Теперь переменная используется!
+	}
+	if displayName == "" {
+		displayName = fmt.Sprintf("%d", targetUserID)
+	}
+	bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль пользователя @%s успешно установлена.", displayName)))
 }
+
 // HandleNewRole — создание новой роли в чате
 func HandleNewRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
@@ -475,109 +476,210 @@ func HandleDeleteRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 // Общая функция для добавления роли с проверкой иерархии
 func addRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message, shortName string) {
-    parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
-    reply := message.ReplyToMessage
+	parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
+	reply := message.ReplyToMessage
 
-    // 1. Получаем роль цели
-    targetRole, err := helpers.GetMemberRole(uint64(reply.From.ID), uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить роль пользователя."))
-        return
-    }
+	// 1. Получаем роль цели
+	targetRole, err := helpers.GetMemberRole(uint64(reply.From.ID), uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить роль пользователя."))
+		return
+	}
 
-    // 2. ЗАЩИТА ИЕРАРХИИ
-    // Нельзя повышать/понижать того, кто выше или равен по приоритету
-    // (кроме случаев, когда мы просто меняем роль, но тут мы проверяем безопасность)
-    if targetRole.Priority >= 50 && shortName == "moderator" { // Например, если цель уже админ(50+)
-         bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя назначить модератором того, кто уже является администратором или выше."))
-         return
-    }
-    
-    // Если пытаемся назначить админом того, кто уже владелец(90) или создатель(100)
-    if targetRole.Priority >= 90 && shortName == "admin" {
-         bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя назначить администратором владельца или создателя."))
-         return
-    }
+	// 2. ЗАЩИТА ИЕРАРХИИ
+	// Нельзя повышать/понижать того, кто выше или равен по приоритету
+	// (кроме случаев, когда мы просто меняем роль, но тут мы проверяем безопасность)
+	if targetRole.Priority >= 50 && shortName == "moderator" { // Например, если цель уже админ(50+)
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя назначить модератором того, кто уже является администратором или выше."))
+		return
+	}
 
-    // 3. Получение новой роли и сохранение
-    role, err := helpers.GetRoleByShortName(shortName, uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Роль не найдена."))
-        return
-    }
+	// Если пытаемся назначить админом того, кто уже владелец(90) или создатель(100)
+	if targetRole.Priority >= 90 && shortName == "admin" {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя назначить администратором владельца или создателя."))
+		return
+	}
 
-    err = helpers.SetMemberRole(uint64(reply.From.ID), role.ID, uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка БД."))
-        return
-    }
+	// 3. Получение новой роли и сохранение
+	role, err := helpers.GetRoleByShortName(shortName, uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Роль не найдена."))
+		return
+	}
 
-    msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь `%s` теперь `%s`.", reply.From.FirstName, shortName))
-    msg.ParseMode = "Markdown"
-    bot.Send(msg)
+	err = helpers.SetMemberRole(uint64(reply.From.ID), role.ID, uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка БД."))
+		return
+	}
+
+	msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь `%s` теперь `%s`.", reply.From.FirstName, shortName))
+	msg.ParseMode = "Markdown"
+	bot.Send(msg)
 }
 
 func HandleAddModer(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(std_helpers.ParseChatID(uint64(message.Chat.ID))))
-    if err != nil || !std_helpers.IsUserAdmin(&memberRole) {
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав."))
-        return
-    }
-    if message.ReplyToMessage == nil { return }
-    addRole(bot, message, "moderator")
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(std_helpers.ParseChatID(uint64(message.Chat.ID))))
+	if err != nil || !std_helpers.IsUserAdmin(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав."))
+		return
+	}
+	if message.ReplyToMessage == nil {
+		return
+	}
+	addRole(bot, message, "moderator")
 }
 
 func HandleAddAdmin(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(std_helpers.ParseChatID(uint64(message.Chat.ID))))
-    if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
-        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав."))
-        return
-    }
-    if message.ReplyToMessage == nil { return }
-    addRole(bot, message, "admin")
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(std_helpers.ParseChatID(uint64(message.Chat.ID))))
+	if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав."))
+		return
+	}
+	if message.ReplyToMessage == nil {
+		return
+	}
+	addRole(bot, message, "admin")
+}
+
+func HandleStats(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+	user_id := message.From.ID
+	memberRole, err := helpers.GetMemberRole(uint64(user_id), uint64(parsed_chat_id))
+	if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) || !std_helpers.IsUserAdmin(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав."))
+		return
+	}
+
+	reply := message.ReplyToMessage
+	if reply == nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+		return
+	}
+
+	reply_user_id := reply.From.ID
+
+	// 1. Получаем профиль пользователя
+	userProfile, err := helpers.GetUserByID(uint64(reply_user_id))
+	if err != nil {
+		log.Printf("Ошибка профиля: %v", err)
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
+		return
+	}
+
+	// 2. Получаем роль пользователя в текущем чате
+	var member structs.Member
+	// Загружаем связь с ролью, чтобы получить её название
+	err = engine.DB.Preload("Role").
+		Where("user_id = ? AND chat_id = ?", reply_user_id, parsed_chat_id).
+		First(&member).Error
+
+	roleName := "Нет роли" // Значение по умолчанию
+	if err == nil && member.Role.Name != "" {
+		roleName = member.Role.Name
+	}
+
+	// 3. Расчет статуса
+	newStatus := 0
+	if userProfile.PositiveReputation >= 10 {
+		newStatus = 3
+	} else if userProfile.PositiveReputation >= 5 {
+		newStatus = 2
+	} else if userProfile.NegativeReputation >= 100 {
+		newStatus = 1
+	}
+
+	// Обновляем статус в БД, если он изменился
+	if userProfile.Status != newStatus {
+		userProfile.Status = newStatus
+		engine.DB.Model(&userProfile).Update("status", newStatus)
+	}
+
+	// 4. Определение текста статуса
+	statusTexts := map[int]string{
+		3: "Отлично",
+		2: "Хорошо",
+		1: "Плохо",
+		0: "Неизвестно",
+	}
+	statusText := statusTexts[userProfile.Status]
+
+	// 5. Расчет статистики
+	totalReputation := userProfile.NegativeReputation + userProfile.PositiveReputation
+	totalGames := userProfile.Wins + userProfile.Losses
+
+	// 6. Формирование и отправка сообщения
+	text := fmt.Sprintf("👤 **Профиль `%s`:**\n"+
+		"└── **Баланс:** `%.2f` $\n"+
+		"└── **Евро:** `%.2f` €\n"+
+		"└── **Floren Coin:** `%.2f` монет\n"+
+		"└── **Репутация:** `%d` (поз: %d, нег: %d)\n"+
+		"└── **Роль:** `%s`\n"+
+		"└── **Игры:** %d (Побед: %d, Поражений: %d)\n"+
+		"└── **Статус:** %s\n\n",
+		userProfile.FirstName,
+		userProfile.Balance,
+		userProfile.Euro,
+		userProfile.FlorenCoin,
+		totalReputation,
+		userProfile.PositiveReputation,
+		userProfile.NegativeReputation,
+		roleName,
+		totalGames,
+		userProfile.Wins,
+		userProfile.Losses,
+		statusText,
+	)
+
+	msg := tgbotapi.NewMessage(message.Chat.ID, text)
+	msg.ParseMode = "Markdown"
+	bot.Send(msg)
+
 }
 
 func HandleAddOwner(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    chat_id := message.Chat.ID
-    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
 
-    // 1. Проверка прав (только Владелец может добавлять другого Владельца)
-    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
-    if err != nil || !std_helpers.IsUserOwner(&memberRole) {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
-        return
-    }
+	// 1. Проверка прав (только Владелец может добавлять другого Владельца)
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+	if err != nil || !std_helpers.IsUserOwner(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+		return
+	}
 
-    // 2. Проверка reply
-    if message.ReplyToMessage == nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
-        return
-    }
-    
-    reply_id := uint64(message.ReplyToMessage.From.ID)
+	// 2. Проверка reply
+	if message.ReplyToMessage == nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+		return
+	}
 
-    // 3. Проверка лимита владельцев
-    role, err := helpers.GetRoleByShortName("owner", uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Роль 'owner' не найдена."))
-        return
-    }
+	reply_id := uint64(message.ReplyToMessage.From.ID)
 
-    users, err := helpers.GetUsersByRole(role.ID, uint64(parsed_chat_id))
-    if err == nil && len(users) >= 2 {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя добавить больше двух владельцев. Лимит достигнут."))
-        return
-    }
+	// 3. Проверка лимита владельцев
+	role, err := helpers.GetRoleByShortName("owner", uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Роль 'owner' не найдена."))
+		return
+	}
 
-    // 4. Дополнительная защита: нельзя назначить владельцем того, кто уже выше или равен
-    targetRole, _ := helpers.GetMemberRole(reply_id, uint64(parsed_chat_id))
-    if targetRole.Priority >= 90 {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь уже имеет равный или более высокий статус."))
-        return
-    }
+	users, err := helpers.GetUsersByRole(role.ID, uint64(parsed_chat_id))
+	if err == nil && len(users) >= 2 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя добавить больше двух владельцев. Лимит достигнут."))
+		return
+	}
 
-    // 5. Выполнение добавления через общую функцию
-    addRole(bot, message, "owner")
+	// 4. Дополнительная защита: нельзя назначить владельцем того, кто уже выше или равен
+	targetRole, _ := helpers.GetMemberRole(reply_id, uint64(parsed_chat_id))
+	if targetRole.Priority >= 90 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь уже имеет равный или более высокий статус."))
+		return
+	}
+
+	// 5. Выполнение добавления через общую функцию
+	addRole(bot, message, "owner")
 }
 
 func HandlePin(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -688,39 +790,38 @@ func HandleRestrictUserCmd(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 }
 
 func HandleRemoveRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-    chat_id := message.Chat.ID
-    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
 
-    // 1. Получение ролей
-    adminRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при проверке ваших прав."))
-        return
-    }
+	// 1. Получение ролей
+	adminRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при проверке ваших прав."))
+		return
+	}
 
-    reply := message.ReplyToMessage
-    if reply == nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
-        return
-    }
+	reply := message.ReplyToMessage
+	if reply == nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+		return
+	}
 
-    targetRole, err := helpers.GetMemberRole(uint64(reply.From.ID), uint64(parsed_chat_id))
-    if err != nil {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось получить роль пользователя."))
-        return
-    }
+	targetRole, err := helpers.GetMemberRole(uint64(reply.From.ID), uint64(parsed_chat_id))
+	if err != nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось получить роль пользователя."))
+		return
+	}
 
-    // 2. Защита от снятия роли самому себе
-    if reply.From.ID == message.From.ID {
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя снять роль самому себе."))
-        return
-    }
+	// 2. Защита от снятия роли самому себе
+	if reply.From.ID == message.From.ID {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя снять роль самому себе."))
+		return
+	}
 
-    // 3. Дебаг-логи для проверки приоритетов
-    log.Printf("[DEBUG] --- [HandleRemoveRole] ---")
-    log.Printf("[DEBUG] Админ: %s (ID: %d), Приоритет: %d", message.From.FirstName, message.From.ID, adminRole.Priority)
-    log.Printf("[DEBUG] Цель: %s (ID: %d), Приоритет: %d", reply.From.FirstName, reply.From.ID, targetRole.Priority)
-
+	// 3. Дебаг-логи для проверки приоритетов
+	log.Printf("[DEBUG] --- [HandleRemoveRole] ---")
+	log.Printf("[DEBUG] Админ: %s (ID: %d), Приоритет: %d", message.From.FirstName, message.From.ID, adminRole.Priority)
+	log.Printf("[DEBUG] Цель: %s (ID: %d), Приоритет: %d", reply.From.FirstName, reply.From.ID, targetRole.Priority)
 
 	if targetRole.BaseShort == "member" {
 		msg := tgbotapi.NewMessage(chat_id, "❌ Пользователь не имеет роли. Снятие роли невозможно.")
@@ -730,38 +831,38 @@ func HandleRemoveRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-    // 4. ЗАЩИТА: Сравнение приоритетов
-    // Админ может снять роль только в том случае, если его приоритет СТРОГО ВЫШЕ приоритета цели.
-    // Если приоритет админа равен или ниже приоритета цели — действие запрещено.
-    if adminRole.Priority <= targetRole.Priority {
-        log.Printf("[DEBUG] ОТКАЗ: %d (админ) <= %d (цель)", adminRole.Priority, targetRole.Priority)
+	// 4. ЗАЩИТА: Сравнение приоритетов
+	// Админ может снять роль только в том случае, если его приоритет СТРОГО ВЫШЕ приоритета цели.
+	// Если приоритет админа равен или ниже приоритета цели — действие запрещено.
+	if adminRole.Priority <= targetRole.Priority {
+		log.Printf("[DEBUG] ОТКАЗ: %d (админ) <= %d (цель)", adminRole.Priority, targetRole.Priority)
 		msg := tgbotapi.NewMessage(chat_id, "❌ Ошибка: вы не можете снять роль у пользователя с равным или более высоким рангом.")
 		msg.ParseMode = "Markdown"
 		msg.ReplyToMessageID = message.MessageID
 		bot.Send(msg)
-        return
-    }
+		return
+	}
 
-    // 5. Удаление роли
-    log.Printf("[DEBUG] Приоритет позволяет действие. Выполняем удаление...")
-    err = helpers.RemoveRole(uint64(reply.From.ID), uint64(parsed_chat_id))
-    if err != nil {
-        log.Printf("[DEBUG] Ошибка БД: %v", err)
-        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при обновлении роли в БД."))
-        return
-    }
+	// 5. Удаление роли
+	log.Printf("[DEBUG] Приоритет позволяет действие. Выполняем удаление...")
+	err = helpers.RemoveRole(uint64(reply.From.ID), uint64(parsed_chat_id))
+	if err != nil {
+		log.Printf("[DEBUG] Ошибка БД: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при обновлении роли в БД."))
+		return
+	}
 
-    log.Printf("[DEBUG] Роль успешно удалена для %s", reply.From.FirstName)
+	log.Printf("[DEBUG] Роль успешно удалена для %s", reply.From.FirstName)
 
-    // 6. Отправка результата
+	// 6. Отправка результата
 
-    text := fmt.Sprintf("✅ Пользователь **%s** снят с роли `%s`", reply.From.FirstName, targetRole.ShortName)
-    msg := tgbotapi.NewMessage(chat_id, text)
-    msg.ParseMode = "Markdown"
+	text := fmt.Sprintf("✅ Пользователь **%s** снят с роли `%s`", reply.From.FirstName, targetRole.ShortName)
+	msg := tgbotapi.NewMessage(chat_id, text)
+	msg.ParseMode = "Markdown"
 	msg.ReplyToMessageID = message.MessageID
 
-    _, sendErr := bot.Send(msg)
-    if sendErr != nil {
-        log.Printf("[DEBUG] Ошибка отправки сообщения: %v", sendErr)
-    }
+	_, sendErr := bot.Send(msg)
+	if sendErr != nil {
+		log.Printf("[DEBUG] Ошибка отправки сообщения: %v", sendErr)
+	}
 }
