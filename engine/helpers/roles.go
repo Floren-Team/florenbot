@@ -61,117 +61,116 @@ func SetRole(user_id uint64, role_id uint64, chat_id uint64) error {
 }
 
 func InitDefaultRoles(chat_id uint64) error {
-    defaultRoles := []structs.Role{
-        {Name: "Создатель", ShortName: "creator", BaseShort: "creator", ChatID: chat_id},
-        {Name: "Владелец", ShortName: "owner", BaseShort: "owner", ChatID: chat_id},
-        {Name: "Администратор", ShortName: "admin", BaseShort: "admin", ChatID: chat_id},
-        {Name: "Модератор", ShortName: "moderator", BaseShort: "moderator", ChatID: chat_id},
-        {Name: "Участник", ShortName: "member", BaseShort: "member", ChatID: chat_id},
-    }
+	defaultRoles := []structs.Role{
+		{Name: "Создатель", ShortName: "creator", BaseShort: "creator", ChatID: chat_id},
+		{Name: "Владелец", ShortName: "owner", BaseShort: "owner", ChatID: chat_id},
+		{Name: "Администратор", ShortName: "admin", BaseShort: "admin", ChatID: chat_id},
+		{Name: "Модератор", ShortName: "moderator", BaseShort: "moderator", ChatID: chat_id},
+		{Name: "Участник", ShortName: "member", BaseShort: "member", ChatID: chat_id},
+	}
 
-    for _, role := range defaultRoles {
-        var count int64
-        engine.DB.Model(&structs.Role{}).
-            Where("short_name = ? AND chat_id = ?", role.ShortName, chat_id).
-            Count(&count)
-        
-        if count == 0 {
-            if err := engine.DB.Create(&role).Error; err != nil {
-                return err
-            }
-        }
-    }
-    return nil
+	for _, role := range defaultRoles {
+		var count int64
+		engine.DB.Model(&structs.Role{}).
+			Where("short_name = ? AND chat_id = ?", role.ShortName, chat_id).
+			Count(&count)
+
+		if count == 0 {
+			if err := engine.DB.Create(&role).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
-
 func AddMemberRole(user_id uint64, baseShort string, chat_id uint64) error {
-    // 1. Начало транзакции
-    tx := engine.DB.Begin()
-    defer func() {
-        if r := recover(); r != nil {
-            tx.Rollback()
-        }
-    }()
+	// 1. Начало транзакции
+	tx := engine.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-    // 2. Поиск ID роли в текущем чате
-    var role_id uint64
-    if err := tx.Model(&structs.Role{}).
-        Where("short_name = ? AND chat_id = ?", baseShort, chat_id).
-        Select("id").
-        Scan(&role_id).Error; err != nil {
-        tx.Rollback()
-        return err
-    }
+	// 2. Поиск ID роли в текущем чате
+	var role_id uint64
+	if err := tx.Model(&structs.Role{}).
+		Where("short_name = ? AND chat_id = ?", baseShort, chat_id).
+		Select("id").
+		Scan(&role_id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-    // 3. Обновление или создание записи участника в таблице Members
-    // Мы работаем ТОЛЬКО с таблицей участников
-    if err := tx.Where(structs.Member{ChatID: chat_id, UserID: user_id}).
-        Assign(structs.Member{RoleID: role_id}).
-        FirstOrCreate(&structs.Member{}).Error; err != nil {
-        tx.Rollback()
-        return err
-    }
+	// 3. Обновление или создание записи участника в таблице Members
+	// Мы работаем ТОЛЬКО с таблицей участников
+	if err := tx.Where(structs.Member{ChatID: chat_id, UserID: user_id}).
+		Assign(structs.Member{RoleID: role_id}).
+		FirstOrCreate(&structs.Member{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-    // --- БЛОК ОБНОВЛЕНИЯ USERS УДАЛЕН, ТАК КАК ПОЛЯ ТАМ БОЛЬШЕ НЕТ ---
+	// --- БЛОК ОБНОВЛЕНИЯ USERS УДАЛЕН, ТАК КАК ПОЛЯ ТАМ БОЛЬШЕ НЕТ ---
 
-    // 4. Фиксация транзакции
-    if err := tx.Commit().Error; err != nil {
-        return err
-    }
+	// 4. Фиксация транзакции
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
 
-    // 5. ОБНОВЛЕНИЕ КЕША
-    // Поскольку мы изменили только таблицу members, а в кеше пользователя 
-    // роль больше не хранится, нам нужно просто обновить кеш пользователя 
-    // на случай, если там есть другие актуальные данные.
-    updatedUser, err := GetUserByID(user_id)
-    if err == nil {
-        UpdateUserCache(updatedUser)
-    }
+	// 5. ОБНОВЛЕНИЕ КЕША
+	// Поскольку мы изменили только таблицу members, а в кеше пользователя
+	// роль больше не хранится, нам нужно просто обновить кеш пользователя
+	// на случай, если там есть другие актуальные данные.
+	updatedUser, err := GetUserByID(user_id)
+	if err == nil {
+		UpdateUserCache(updatedUser)
+	}
 
-    return nil
+	return nil
 }
 
 // SetMemberRole устанавливает роль пользователю в конкретном чате
 func SetMemberRole(userID uint64, roleID uint64, chatID uint64) error {
-    // Используем транзакцию для атомарности
-    tx := engine.DB.Begin()
-    
-    // Обновляем или создаем запись участника
-    member := structs.Member{ChatID: chatID, UserID: userID}
-    if err := tx.Where(member).Assign(structs.Member{RoleID: roleID}).FirstOrCreate(&member).Error; err != nil {
-        tx.Rollback()
-        return err
-    }
+	// Используем транзакцию для атомарности
+	tx := engine.DB.Begin()
 
-    if err := tx.Commit().Error; err != nil {
-        return err
-    }
+	// Обновляем или создаем запись участника
+	member := structs.Member{ChatID: chatID, UserID: userID}
+	if err := tx.Where(member).Assign(structs.Member{RoleID: roleID}).FirstOrCreate(&member).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-    // После изменения роли в БД, нужно принудительно обновить кеш пользователя
-    // так как профиль пользователя может содержать информацию о текущем чате или правах
-    user, err := GetUserByID(userID)
-    if err == nil {
-        UpdateUserCache(user)
-    }
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
 
-    return nil
+	// После изменения роли в БД, нужно принудительно обновить кеш пользователя
+	// так как профиль пользователя может содержать информацию о текущем чате или правах
+	user, err := GetUserByID(userID)
+	if err == nil {
+		UpdateUserCache(user)
+	}
+
+	return nil
 }
 
 func CreateRole(name string, short_name string, base_short string, chat_id uint64) error {
 	role := structs.Role{
 		Name:      name,
 		ShortName: short_name,
-        BaseShort: base_short,
+		BaseShort: base_short,
 		ChatID:    chat_id,
 	}
 	return engine.DB.Save(&role).Error
 }
 
 func GetRoleByID(roleID uint64, chat_id uint64) (structs.Role, error) {
-    var role structs.Role
-    err := engine.DB.Where("id = ? AND chat_id = ?", roleID, chat_id).First(&role).Error
-    return role, err
+	var role structs.Role
+	err := engine.DB.Where("id = ? AND chat_id = ?", roleID, chat_id).First(&role).Error
+	return role, err
 }
 
 func DeleteRoleByID(roleID uint64, chat_id uint64) error {

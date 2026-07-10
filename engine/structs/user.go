@@ -17,7 +17,6 @@ type User struct {
 	FlorenCoin float64 `gorm:"default:300000" json:"floren_coin"`
 	Euro       float64 `gorm:"default:17800" json:"euro"`
 
-
 	ClanID *uint64 `gorm:"type:bigint unsigned" json:"clan_id"`
 
 	PromoCode string `gorm:"column:promocode;size:32" json:"promocode"`

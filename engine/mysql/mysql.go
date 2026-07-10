@@ -94,47 +94,42 @@ func ConnectDB() {
 
 // Migrate выполняет автоматическую миграцию таблиц и инициализацию данных
 func Migrate(db *gorm.DB) error {
-    // 1. Создаем независимые таблицы (фундамент)
-    err := db.AutoMigrate(
-        &structs.Chat{},
-        &structs.Clan{},
-    )
-    if err != nil {
-        return err
-    }
+	// 1. Создаем независимые таблицы (фундамент)
+	err := db.AutoMigrate(
+		&structs.Chat{},
+		&structs.Clan{},
+	)
+	if err != nil {
+		return err
+	}
 
-    // 2. Создаем таблицу ролей
-    err = db.AutoMigrate(&structs.Role{})
-    if err != nil {
-        return err
-    }
-    
-  
+	// 2. Создаем таблицу ролей
+	err = db.AutoMigrate(&structs.Role{})
+	if err != nil {
+		return err
+	}
 
-    // 3. Создаем таблицы, которые зависят от ролей или чатов
-    err = db.AutoMigrate(
-        &structs.Member{},
-        &structs.User{},
-    )
-    if err != nil {
-        return err
-    }
+	// 3. Создаем таблицы, которые зависят от ролей или чатов
+	err = db.AutoMigrate(
+		&structs.Member{},
+		&structs.User{},
+	)
+	if err != nil {
+		return err
+	}
 
-    // 4. Создаем все остальные зависимые таблицы
-    return db.AutoMigrate(
+	// 4. Создаем все остальные зависимые таблицы
+	return db.AutoMigrate(
 		&structs.Role{},
-        &structs.UserPromo{},
-        &structs.Report{},
-        &structs.Ban{},
-        &structs.ClanMember{},
-        &structs.ClanBlacklist{},
-    )
+		&structs.UserPromo{},
+		&structs.Report{},
+		&structs.Ban{},
+		&structs.ClanMember{},
+		&structs.ClanBlacklist{},
+	)
 }
 
 // initDefaultRoles заполняет базу данных начальными ролями, если их еще нет
-
-
-
 
 // GetUserBalance получает баланс пользователя по его ID
 func GetUserBalance(userId uint64) (float64, error) {
