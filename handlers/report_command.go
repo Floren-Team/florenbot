@@ -2,16 +2,20 @@ package handlers
 
 import (
 	helpers "florenbot/engine/helpers"
+	std_helpers "florenbot/helpers"
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strings"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	debug_type := GetEnvBool("DEBUG", false)
 
 	user_id := uint64(message.From.ID)
+	parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
+	chat_id := message.Chat.ID
 
 	args := message.CommandArguments()
 	parts := strings.Fields(args)
@@ -105,6 +109,17 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
+			memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+			if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
+				bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав или ошибка проверки."))
+				return
+			}
+
+			if !std_helpers.IsUserAdmin(&memberRole) {
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ У вас нет прав, только владелец может удалять отчеты"))
+				return
+			}
+
 			exists, err := helpers.HasReport(user_id)
 			if err != nil {
 				if debug_type {
@@ -128,7 +143,7 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ок, брат, я тебя понял))"))
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ок, брат, я тебя понял))))"))
 			return
 		}
 
