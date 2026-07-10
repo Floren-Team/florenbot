@@ -11,7 +11,20 @@ func IsUserAdmin(role *structs.Role) bool {
 	return role.BaseShort == "admin" || role.BaseShort == "owner" || role.BaseShort == "creator"
 }
 
-// IsUserOwnerOrCreator проверяет права владельца или создателя
+func IsUserOwner(role *structs.Role) bool {
+	if role == nil {
+		return false
+	}
+	return role.BaseShort == "owner"
+}
+
+func IsUserCreator(role *structs.Role) bool {
+	if role == nil {
+		return false
+	}
+	return role.BaseShort == "creator"
+}
+
 func IsUserOwnerOrCreator(role *structs.Role) bool {
 	if role == nil {
 		return false

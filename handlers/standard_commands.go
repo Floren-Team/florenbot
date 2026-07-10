@@ -26,6 +26,8 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     info := fmt.Sprintf("👋 Привет! Твоя роль: *%s*\n\n", roleName)
     info += "📜 *Доступные команды:*\n"
     info += "/help — Список команд\n"
+    info += "/top — Топ сообщений\n"
+
 
     // 1. Команды для Модератора (например: бан, мут)
     if memberRole.ShortName == "moderator" || std_helpers.IsUserAdmin(&memberRole) {
@@ -37,16 +39,27 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     // 2. Команды для Администратора (управление модераторами)
     if std_helpers.IsUserAdmin(&memberRole) {
         info += "\n👮 *Панель администратора:*\n"
-        info += "/warn — Выдать предупреждение\n"
+        info += "/ban — Выдать бан\n"
+        info += "/mute выдать мут\n"
+        info += "/unmute — Снять мут\n"
+
     }
 
     // 3. Команды для Владельца и Создателя (полный доступ)
     if std_helpers.IsUserOwnerOrCreator(&memberRole) {
-        info += "\n👑 *Панель управления:*\n"
+        info += "\n👑 *Команды владельца:*\n"
         info += "/newrole [имя] — Создать роль\n"
         info += "/delrole [ID] — Удалить роль\n"
+        info += "/editcmd [ID] — Изменить доступ к команде пользователя\n"
         info += "/editrole [ID] [имя] [короткое] — Редактировать\n"
     }
+
+    if std_helpers.IsUserCreator(&memberRole) {
+        info += "\n👑 *Команды создателя:*\n"
+        info += "/sysrole - выдать системную роль в беседе\n"
+    }
+
+    
 
     msg := tgbotapi.NewMessage(message.Chat.ID, info)
     msg.ParseMode = "Markdown"

@@ -199,63 +199,89 @@ func HandleNewRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	// 3. Проверяем аргументы команды
 	args := strings.Fields(message.CommandArguments())
-	if len(args) < 2 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/newrole [название_роли] [короткое_название_роли]`"))
+	if len(args) < 3 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/newrole [название роли через пробел] [короткое_название] [служебное_имя]`"))
 		return
 	}
 
-	// 4. Создаем роль в базе данных
-	if err := helpers.CreateRole(args[0], args[1], uint64(parsed_chat_id)); err != nil {
-		log.Printf("DEBUG: [HandleNewRole] КРИТИЧЕСКАЯ ОШИБКА: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при работе с базой данных."))
-		return
+	// Берем последние два элемента как технические
+	base_short := args[len(args)-1]
+	role_short_name := args[len(args)-2]
+	
+	// Все, что идет до них — это название роли (объединяем обратно через пробел)
+	role_name := strings.Join(args[:len(args)-2], " ")
+
+	const serviceNameRolesAvailable = "admin, creator, owner, moderator, member"
+
+	switch base_short {
+		case "admin", "creator", "owner", "moderator", "member":
+			if err := helpers.CreateRole(role_name, role_short_name, base_short, uint64(parsed_chat_id)); err != nil {
+				log.Printf("DEBUG: [HandleNewRole] КРИТИЧЕСКАЯ ОШИБКА: %v", err)
+				bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка при работе с базой данных."))
+				return
+			}
+		default:
+			bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("❌ Неверное служебное имя роли. Доступные: %s", serviceNameRolesAvailable)))
+			return
 	}
 
-	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль `%s` создана.", args[0]))
+	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль `%s` создана.", role_name))
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
-
 }
 
 // HandleEditRole — редактирование роли в чате
+
 func HandleEditRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
-	chat_id := message.Chat.ID
+    parsed_chat_id := std_helpers.ParseChatID(uint64(message.Chat.ID))
+    chat_id := message.Chat.ID
 
-	// 1. Проверка прав пользователя
-	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
-	if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав или ошибка проверки."))
-		return
-	}
+    // 1. Проверка прав пользователя
+    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+    if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав или ошибка проверки."))
+        return
+    }
 
-	// 2. Проверка аргументов (ожидаем: ID, новое имя, новое короткое имя)
-	args := strings.Fields(message.CommandArguments())
-	if len(args) < 3 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/editrole [ID] [новое_имя] [новое_короткое_имя]`"))
-		return
-	}
+    // 2. Проверка аргументов
+    args := strings.Fields(message.CommandArguments())
+    // Ожидаем: ID (1) + Имя (N слов) + Короткое имя (1 слово) = минимум 3 аргумента
+    if len(args) < 3 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/editrole [ID] [новое_название] [новое_короткое_имя]`"))
+        return
+    }
 
-	// Преобразуем ID
-	roleID, _ := strconv.ParseUint(args[0], 10, 64)
+    // ID всегда первый аргумент
+    roleID, err := strconv.ParseUint(args[0], 10, 64)
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Некорректный ID роли."))
+        return
+    }
 
-	// Создаем объект для передачи в функцию
-	roleToUpdate := structs.Role{
-		ID:        roleID,
-		ChatID:    uint64(parsed_chat_id),
-		Name:      args[1],
-		ShortName: args[2],
-	}
+    // Короткое имя — последний аргумент
+    new_short_name := args[len(args)-1]
+    
+    // Название — всё, что между ID и коротким именем
+    new_name := strings.Join(args[1:len(args)-1], " ")
 
-	// 3. Вызов обновленной функции EditRole
-	_, err = helpers.EditRole(roleToUpdate)
-	if err != nil {
-		log.Printf("DEBUG: [HandleEditRole] ОШИБКА: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка обновления в БД."))
-		return
-	}
+    // Создаем объект для передачи в функцию
+    roleToUpdate := structs.Role{
+        ID:        roleID,
+        ChatID:    uint64(parsed_chat_id),
+        Name:      new_name,
+        ShortName: new_short_name,
+    }
 
-	bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль с ID `%d` успешно изменена.", roleID)))
+    // 3. Вызов функции EditRole
+    _, err = helpers.EditRole(roleToUpdate)
+    if err != nil {
+        log.Printf("DEBUG: [HandleEditRole] ОШИБКА: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка обновления в БД."))
+        return
+    }
+	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль `%s` (ID `%d`) успешно изменена.", new_name, roleID))
+	msg.ParseMode = "Markdown"
+    bot.Send(msg)
 }
 
 // HandleDeleteRole — удаление роли из чата по её ID
@@ -295,6 +321,21 @@ func HandleDeleteRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bot.Send(tgbotapi.NewMessage(int64(chat_id), "❌ ID роли должен быть числом."))
 		return
 	}
+
+	role, err := helpers.GetRoleByID(roleID, uint64(parsed_chat_id))
+	if err != nil {
+		log.Printf("DEBUG: [HandleDeleteRole] ОШИБКА: %v", err)
+		bot.Send(tgbotapi.NewMessage(int64(chat_id), "❌ Роли с таким ID не существует."))
+		return
+	}
+
+	if role.BaseShort == "member" || role.ShortName == "owner" || role.ShortName == "creator" {
+		msg := tgbotapi.NewMessage(int64(chat_id), fmt.Sprintf("❌ Нельзя удалить роль `%s`, так как она является базовой.", role.ShortName))
+		msg.ParseMode = "Markdown"
+		bot.Send(msg)
+		return
+	}
+
 
 	// 4. Удаление роли
 	if err := helpers.DeleteRoleByID(roleID, uint64(parsed_chat_id)); err != nil {

@@ -158,13 +158,20 @@ func SetMemberRole(userID uint64, roleID uint64, chatID uint64) error {
     return nil
 }
 
-func CreateRole(name string, short_name string, chat_id uint64) error {
+func CreateRole(name string, short_name string, base_short string, chat_id uint64) error {
 	role := structs.Role{
 		Name:      name,
 		ShortName: short_name,
+        BaseShort: base_short,
 		ChatID:    chat_id,
 	}
 	return engine.DB.Save(&role).Error
+}
+
+func GetRoleByID(roleID uint64, chat_id uint64) (structs.Role, error) {
+    var role structs.Role
+    err := engine.DB.Where("id = ? AND chat_id = ?", roleID, chat_id).First(&role).Error
+    return role, err
 }
 
 func DeleteRoleByID(roleID uint64, chat_id uint64) error {
