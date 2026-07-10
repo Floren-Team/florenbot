@@ -253,7 +253,7 @@ func HandleNewRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	}
 
 	switch base_short {
-	case "admin", "creator", "owner", "moderator", "member":
+	case "admin", "moderator":
 		// Вызываем обновленную функцию CreateRole с приоритетом
 		if err := helpers.CreateRole(role_name, role_short_name, base_short, uint64(parsed_chat_id), priority); err != nil {
 			log.Printf("DEBUG: [HandleNewRole] ОШИБКА БД: %v", err)
@@ -261,7 +261,7 @@ func HandleNewRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 	default:
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверное служебное имя. Доступные: admin, creator, owner, moderator, member"))
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверное служебное имя. Доступные: admin, moderator"))
 		return
 	}
 
