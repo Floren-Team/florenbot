@@ -173,6 +173,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandlePromo(bot, message)
 	case "info":
 		handlers.HandleInfo(bot, message)
+	case "msg":
+		admin_handlers.HandleSendMessage(bot, message)
 	case "rep":
 		handlers.HandleReputation(bot, message)
 	case "report":

@@ -654,6 +654,51 @@ func HandleStats(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 }
 
+func HandleSendMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+
+	// 1. Проверка прав
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+	if err != nil || !std_helpers.IsUserCreator(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+		return
+	}
+
+
+
+	reply := message.ReplyToMessage
+	if reply == nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+		return
+	}
+
+	user_id := reply.From.ID
+
+	// 2. Получаем текст сообщения
+	args := strings.Fields(message.CommandArguments())
+	if len(args) < 1 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Укажите текст сообщения."))
+		return
+	}
+
+	text := strings.Join(args, " ")
+
+	// 3. Отправляем сообщение указанному пользователю
+
+	msg := tgbotapi.NewMessage(user_id, text)
+	msg.ParseMode = "Markdown"
+	bot.Send(msg)
+
+
+
+	msg = tgbotapi.NewMessage(chat_id, "✅ Сообщение отправлено.")
+	msg.ParseMode = "Markdown"
+	bot.Send(msg)
+
+
+}
+
 func HandleAddOwner(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chat_id := message.Chat.ID
 	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
