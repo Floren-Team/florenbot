@@ -1,6 +1,6 @@
 package consts
 
-const VERSION = "7.7"
+const VERSION = "7.8"
 
 const DATE_LAST_UPDATE = "16.07.2026"
 
