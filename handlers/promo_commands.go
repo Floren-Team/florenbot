@@ -123,7 +123,8 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			if debug_type {
 				log.Printf("Ошибка при создании кода: %v", err)
 			}
-			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при создании"))
+			errorMessage := fmt.Sprintf("❌ Ошибка при создании кода: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, errorMessage))
 			return
 		}
 
@@ -175,6 +176,40 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
+		result, err := std_helpers.IsCreator(bot, message.Chat.ID, int64(message.From.ID))
+		log.Printf("result checker creator: %v", result)
+		log.Printf("error checker creator: %v", err)
+		if err != nil {
+			if debug_type {
+				log.Printf("Ошибка при проверке создателя: %v", err)
+			}
+			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при проверке создателя")
+			msg.ReplyToMessageID = message.MessageID
+			if _, err := bot.Send(msg); err != nil {
+				log.Printf("Ошибка отправки уведомления: %v", err)
+			}
+			return
+		}
+
+		if result {
+			if debug_type {
+				log.Printf("Удаление промокода %s", code)
+			}
+
+			err = helpers.DeleteCode(code)
+			if err != nil {
+				if debug_type {
+					log.Printf("Ошибка при удалении: %v", err)
+				}
+				bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка при удалении промокода"))
+				return
+			}
+
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "✅ Промокод '"+code+"' удален\n"+
+														 "❌ Промокод аннулирован у всех пользователей.\n"+
+														 "Кто удалил: Создатель"))
+			return
+		}
 		if uint64(promo.OwnerID) != userID {
 			msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Вы не можете удалить этот промокод")
 			msg.ReplyToMessageID = message.MessageID

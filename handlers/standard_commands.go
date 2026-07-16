@@ -156,6 +156,8 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
+		
+
 		// 2. Подготовка ID чата (преобразуем отрицательные ID Telegram в положительные для БД)
 		chat_id := message.Chat.ID
 		db_id := uint64(chat_id)
@@ -163,6 +165,17 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			db_id = uint64(-chat_id)
 		}
 
+		// Проверяем если у пользователь есть роль creator в беседе
+		user_id := user.ID
+		isCreator, err := std_helpers.IsCreator(bot, chat_id, int64(user_id))
+		if err != nil {
+			log.Printf("Ошибка при проверке роли creator: %v", err)
+		}
+
+		if !isCreator {
+			bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для создания чата."))
+			return
+		}
 		// 3. Создаем структуру чата для регистрации
 		newChat := structs.Chat{
 			ID:     db_id,

@@ -13,7 +13,7 @@ type UserPromo struct {
 
 	// OwnerID — ID пользователя, создавшего промокод.
 	// Уникален, так как по вашей логике у одного пользователя может быть только один активный код
-	OwnerID int64 `gorm:"not null;unique" json:"owner_id"`
+	OwnerID int64 `gorm:"not null" json:"owner_id"`
 
 	// Amount — сумма бонуса или награды
 	Amount float64 `gorm:"not null" json:"amount"`

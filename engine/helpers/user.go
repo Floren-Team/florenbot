@@ -9,7 +9,6 @@ import (
 	"florenbot/helpers"
 	"fmt"
 	"gorm.io/gorm"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -177,17 +176,17 @@ func GetOrCreateUser(tgID uint64, username string, firstName string) (structs.Us
 
 	return newUser, nil
 }
-func IsCommandRestricted(userID uint64, chatID uint64, command string) bool {
-	var count int64
-	err := engine.DB.Model(&structs.UserCommandRestriction{}).
-		Where("user_id = ? AND chat_id = ? AND command = ?", userID, chatID, command).
-		Count(&count).Error
+func IsCommandRestricted(userID uint64, chatID uint64, command string) (bool, error) {
+    var count int64
+    err := engine.DB.Model(&structs.UserCommandRestriction{}).
+        Where("user_id = ? AND chat_id = ? AND command = ?", userID, chatID, command).
+        Count(&count).Error
 
-	if err != nil {
-		log.Printf("DEBUG: [IsCommandRestricted] Помилка БД: %v", err)
-		return false
-	}
-	return count > 0
+    if err != nil {
+        return false, err
+    }
+    
+    return count > 0, nil
 }
 
 // UpdateUserCache обновляет кеш пользователя, удаляя старые данные и записывая актуальные

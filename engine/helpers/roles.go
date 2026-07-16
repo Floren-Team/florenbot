@@ -68,8 +68,10 @@ func InitDefaultRoles(chat_id uint64) error {
 	defaultRoles := []structs.Role{
 		{Name: "Создатель", ShortName: "creator", BaseShort: "creator", ChatID: chat_id, Priority: 100},
 		{Name: "Владелец", ShortName: "owner", BaseShort: "owner", ChatID: chat_id, Priority: 90},
+		{Name: "Руководитель", ShortName: "Management", BaseShort: "manage", ChatID: chat_id, Priority: 80},
 		{Name: "Администратор", ShortName: "admin", BaseShort: "admin", ChatID: chat_id, Priority: 50},
 		{Name: "Модератор", ShortName: "moderator", BaseShort: "moderator", ChatID: chat_id, Priority: 20},
+		{Name: "Хелпер", ShortName: "helper", BaseShort: "helper", ChatID: chat_id, Priority: 12},		
 		{Name: "Участник", ShortName: "member", BaseShort: "member", ChatID: chat_id, Priority: 10},
 	}
 

@@ -132,9 +132,20 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	command := strings.ToLower(parts[0][1:])
 	userID := uint64(message.From.ID)
 	chatID := uint64(message.Chat.ID)
+	parsed_chat_id := helpers.ParseChatID(uint64(chatID))
+
 	// 2. ПРОВЕРКА ОГРАНИЧЕНИЙ
 	// Если функция возвращает true — значит, команда запрещена для этого пользователя
-	if helper.IsCommandRestricted(userID, chatID, command) {
+	
+	result, err := helper.IsCommandRestricted(userID, uint64(parsed_chat_id), command)
+	log.Printf("DEBUG: [IsCommandRestricted] Result: %v", result)
+	log.Printf("DEBUG: [IsCommandRestricted] Error: %v", err)
+
+	if err != nil {
+		log.Printf("DEBUG: [IsCommandRestricted] Ошибка БД: %v", err)
+	}
+
+	if result {
 		bot.Send(tgbotapi.NewMessage(int64(chatID), "🚫 Вам запрещено использовать эту команду. Обратитесь к администрации чата."))
 		return
 	}

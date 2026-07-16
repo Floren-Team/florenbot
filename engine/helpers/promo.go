@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"strings"
+	"unicode"
+	"errors"
 )
 
 // ActivateCode обновляет промокод у пользователя
@@ -15,6 +17,17 @@ func ActivateCode(id uint64, code string) error {
 
 // CreateCode создает новый промокод
 func CreateCode(code string, amount int, ownerID uint64) error {
+	isOnlyDigits := true
+    for _, r := range code {
+        if !unicode.IsDigit(r) {
+            isOnlyDigits = false
+            break
+        }
+    }
+
+    if isOnlyDigits {
+        return errors.New("Промокод содержит цифры. Пожалуйста, используйте буквы.")
+    }
 	promo := structs.UserPromo{
 		Code:    code,
 		Amount:  float64(amount),
