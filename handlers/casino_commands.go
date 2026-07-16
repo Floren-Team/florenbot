@@ -10,14 +10,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+	"context"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
 
 var StartRandomValue int
 
 func init() {
 	StartRandomValue = rand.Intn(100)
+	
 }
 
 func GetEnvBool(key string, defaultValue bool) bool {
@@ -107,6 +111,22 @@ func HandleCasino(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if float64(bet) > balance {
 		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ У вас недостаточно монет! Ваш баланс: %2.f", balance))); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
+		return
+	}
+
+
+	ctx := context.Background()
+	allowed, err := helpers_user.CheckRateLimit(ctx, cache.RDB, user_id, 5, 30*time.Second)
+	log.Printf("Allowed: %v", allowed)
+	log.Printf("Error: %v", err)
+	if err != nil {
+		log.Printf("Ошибка проверки лимита: %v", err)
+		return
+	}
+	if !allowed {
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Слишком много запросов повторите через 30 секунд")); err != nil {
 			log.Printf("Ошибка отправки уведомления: %v", err)
 		}
 		return
@@ -242,6 +262,22 @@ func HandleRoulette(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	if float64(bet) > balance {
 		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("❌ Недостаточно монет. Ваш баланс: %2.f", balance))); err != nil {
+			log.Printf("Ошибка отправки уведомления: %v", err)
+		}
+		return
+	}
+
+
+	ctx := context.Background()
+	allowed, err := helpers_user.CheckRateLimit(ctx, cache.RDB, user_id, 5, 30*time.Second)
+	log.Printf("Allowed: %v", allowed)
+	log.Printf("Error: %v", err)
+	if err != nil {
+		log.Printf("Ошибка проверки лимита: %v", err)
+		return
+	}
+	if !allowed {
+		if _, err := bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Слишком много запросов повторите через 30 секунд")); err != nil {
 			log.Printf("Ошибка отправки уведомления: %v", err)
 		}
 		return

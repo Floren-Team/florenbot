@@ -521,18 +521,7 @@ func addRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message, shortName string) 
 	bot.Send(msg)
 
 
-	data := structs.Log{
-		ChatID: uint64(parsed_chat_id),
-		UserID: uint64(message.From.ID),
-		Text: "Пользователь теперь " + shortName + " ID: " + strconv.FormatUint(uint64(reply.From.ID), 10),
-	}
 
-	err = helpers.WriteLog(data)
-	if err != nil {
-		log.Printf("DEBUG: [HandleAddRole] Ошибка записи лога: %v", err)
-		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка БД."))
-		return
-	}
 }
 
 func HandleAddModer(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -583,6 +572,11 @@ func HandleStats(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if err != nil {
 		log.Printf("Ошибка профиля: %v", err)
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
+		return
+	}
+
+	if reply.From.ID == message.From.ID {
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя получить статистику самого себя.\n\nЕсли вы хотите увидеть свою статистику, используйте команду `/profile`"))
 		return
 	}
 
