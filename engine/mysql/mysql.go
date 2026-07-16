@@ -122,7 +122,6 @@ func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&structs.Role{},
 		&structs.UserCommandRestriction{},
-		&structs.Log{},
 		&structs.UserPromo{},
 		&structs.Report{},
 		&structs.Ban{},
