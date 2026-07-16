@@ -109,6 +109,8 @@ func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if err != nil {
 		log.Printf("Ошибка отправки сообщения: %v", err)
 	}
+
+
 }
 // HandleSetRole обрабатывает команду /setrole <username> <role_id>
 func HandleSetRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -264,6 +266,7 @@ func HandleNewRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Роль `%s` создана (Приоритет: %d).", role_name, priority))
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
+
 }
 
 func HandleModers(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -298,6 +301,8 @@ func HandleModers(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg := tgbotapi.NewMessage(chat_id, msgText)
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
+
+
 }
 
 func HandleAdmins(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -468,6 +473,8 @@ func HandleDeleteRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg.ParseMode = "Markdown"
 
 	bot.Send(msg)
+
+
 }
 
 // Общая функция для добавления роли с проверкой иерархии
@@ -512,6 +519,20 @@ func addRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message, shortName string) 
 	msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("✅ Пользователь `%s` теперь `%s`.", reply.From.FirstName, shortName))
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
+
+
+	data := structs.Log{
+		ChatID: uint64(parsed_chat_id),
+		UserID: uint64(message.From.ID),
+		Text: "Пользователь теперь " + shortName + " ID: " + strconv.FormatUint(uint64(reply.From.ID), 10),
+	}
+
+	err = helpers.WriteLog(data)
+	if err != nil {
+		log.Printf("DEBUG: [HandleAddRole] Ошибка записи лога: %v", err)
+		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка БД."))
+		return
+	}
 }
 
 func HandleAddModer(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -633,6 +654,10 @@ func HandleStats(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	msg.ParseMode = "Markdown"
 	bot.Send(msg)
 
+
+
+
+
 }
 
 func HandleAddOwner(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -710,7 +735,7 @@ func HandlePin(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	reply_id := reply.MessageID
 
 	pinConfig := tgbotapi.PinChatMessageConfig{
-		ChatID:    chat_id,
+		ChatID:    chat_id, 
 		MessageID: reply_id,
 	}
 
@@ -724,7 +749,10 @@ func HandlePin(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	msg := tgbotapi.NewMessage(chat_id, "✅ Сообщение успешно закреплено.")
 	bot.Send(msg)
+
 }
+
+
 
 func HandleRestrictUserCmd(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chat_id := message.Chat.ID
@@ -816,7 +844,7 @@ func HandleRestrictUserCmd(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 		bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Команда /%s запрещена для пользователя %s.", command, reply.From.FirstName)))
-
+		
 	case "remove":
 		// Удаляем ограничение из базы данных
 		result := engine.DB.Where("user_id = ? AND chat_id = ? AND command = ?", userID, chatID, command).
@@ -827,6 +855,8 @@ func HandleRestrictUserCmd(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		} else {
 			bot.Send(tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Ограничение на команду /%s снято.", command)))
 		}
+
+	
 	default:
 		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неизвестное действие. Используйте `add` или `remove`."))
 	}
@@ -908,4 +938,5 @@ func HandleRemoveRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	if sendErr != nil {
 		log.Printf("[DEBUG] Ошибка отправки сообщения: %v", sendErr)
 	}
+
 }
