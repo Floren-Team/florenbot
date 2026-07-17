@@ -14,7 +14,10 @@ binary
 test
 test.go
 data
+
 cache
+!engine/cache
+
 redis.go.bak
 main.go.bak
 publish.sh
