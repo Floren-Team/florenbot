@@ -5,13 +5,14 @@ import (
 	"errors"
 	"florenbot/engine/cache"
 	engine "florenbot/engine/mysql"
-	"florenbot/engine/structs"
+	structs "florenbot/engine/structs"
 	"florenbot/helpers"
 	"fmt"
 	"gorm.io/gorm"
 	"os"
 	"strconv"
 	"time"
+	"log"
 )
 
 func GetRole(userID uint64) (string, error) {
@@ -71,6 +72,8 @@ func saveUserToCache(user structs.User) {
 			"losses":              user.Losses,
 			"wins":                user.Wins,
 			"euro":                user.Euro,
+			"vip":                 user.Vip,
+		    "first_name":				user.FirstName,
 		}
 		_ = cache.HMSet(key, vals)
 		cache.Expire(key, 10*time.Minute)
@@ -80,6 +83,42 @@ func saveUserToCache(user structs.User) {
 		fileData, _ := json.Marshal(user)
 		_ = os.WriteFile(filename, fileData, 0644)
 	}
+}
+
+func IncrementMessageCount(userID uint64, username string, firstName string) {
+    _, err := GetOrCreateUser(userID, username, firstName)
+    if err != nil {
+        log.Printf("Error getting or creating user: %v", err)
+        return
+    }
+
+    log.Printf("Incrementing message count for user %d", userID)
+    
+    result := engine.DB.Model(&structs.User{}).
+        Where("id = ?", userID).
+        Update("message_count", gorm.Expr("COALESCE(message_count, 0) + 1"))
+
+    if result.Error != nil {
+        log.Printf("Error incrementing message count: %v", result.Error)
+        return
+    }
+
+    if result.RowsAffected == 0 {
+        log.Printf("User %d not found or no update performed", userID)
+    }
+}
+
+
+func GetTopByMessages(limit int) ([]structs.User, error) {
+    var topUsers []structs.User
+    
+    // Сортуємо за message_count у спадному порядку
+    err := engine.DB.Model(&structs.User{}).
+        Order("message_count DESC").
+        Limit(limit).
+        Find(&topUsers).Error
+        
+    return topUsers, err
 }
 
 // GetUserByID получает пользователя из кеша или БД
@@ -92,22 +131,32 @@ func GetUserByID(tgID uint64) (structs.User, error) {
 	switch cacheEngine {
 	case "redis":
 		data, err := cache.HGetAll(key)
+		// Проверяем, что нет ошибки и что в кеше действительно есть данные (хотя бы одно поле)
 		if err == nil && len(data) > 0 {
 			user.ID = tgID
 			user.Username = data["username"]
+			user.FirstName = data["first_name"]
 
-			// Парсинг числовых значений
+			// Безопасный парсинг чисел (используем вспомогательные функции для чистоты кода)
 			if val, err := strconv.ParseFloat(data["balance"], 64); err == nil {
 				user.Balance = val
 			}
 			if val, err := strconv.ParseFloat(data["euro"], 64); err == nil {
 				user.Euro = val
 			}
+			
+			// Парсинг ClanID (указатель)
 			if val, err := strconv.ParseUint(data["clan_id"], 10, 64); err == nil && val != 0 {
 				v := val
 				user.ClanID = &v
 			}
 
+			// Парсинг VIP
+			if val, err := strconv.ParseUint(data["vip"], 10, 64); err == nil {
+				user.Vip = int(val)
+			}
+
+			// Парсинг остальных целочисленных полей
 			user.NegativeReputation, _ = strconv.Atoi(data["negative_reputation"])
 			user.PositiveReputation, _ = strconv.Atoi(data["positive_reputation"])
 			user.Losses, _ = strconv.Atoi(data["losses"])
@@ -125,18 +174,17 @@ func GetUserByID(tgID uint64) (structs.User, error) {
 		}
 	}
 
-	// 2. Запрос к базе данных
-	// ВАЖНО: Удален Preload("Role"), так как роль теперь привязана к chat_members, а не к пользователю
+	// 2. Запрос к базе данных, если в кеше нет или кеш отключен
 	err := engine.DB.Where("id = ?", tgID).First(&user).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return user, fmt.Errorf("user %d not found", tgID)
+			return user, fmt.Errorf("пользователь %d не найден", tgID)
 		}
 		return user, err
 	}
 
-	// 3. Сохранение в кеш после успешного запроса
+	// 3. Сохранение в кеш после успешного запроса из БД
 	saveUserToCache(user)
 
 	return user, nil
@@ -187,6 +235,58 @@ func IsCommandRestricted(userID uint64, chatID uint64, command string) (bool, er
     }
     
     return count > 0, nil
+}
+
+
+func GetLastBonusTime(userID uint64) (time.Time, error) {
+    var user struct {
+        LastBonusAt time.Time
+    }
+
+    err := engine.DB.Model(&structs.User{}).Select("last_bonus_at").Where("id = ?", userID).Scan(&user).Error
+
+    if err != nil {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
+            return time.Time{}, nil
+        }
+        return time.Time{}, err
+    }
+
+    return user.LastBonusAt, nil
+}
+
+
+func AddVip(userId uint64, vipLevel uint16) error {
+	err := engine.DB.Model(&structs.User{}).Where("id = ?", userId).Update("vip", vipLevel).Error
+	if err != nil {
+		log.Printf("Ошибка при обновлении VIP уровня для пользователя %d: %v", userId, err)
+		return errors.New("Ошибка при обновлении VIP уровня для пользователя")
+
+	}
+
+
+	activeAt := time.Now()
+	result := activeAt.Add(time.Hour * 24 * 30)
+	err = engine.DB.Exec("UPDATE users SET vip = ?, `vip_active_at` = ? WHERE id = ?", vipLevel, result, userId).Error
+	if err != nil {
+		log.Printf("Ошибка при обновлении VIP уровня для пользователя %d: %v", userId, err)
+		return errors.New("Ошибка при обновлении VIP уровня для пользователя")
+	}
+
+	return nil
+}
+
+func UpdateLastBonusTime(userID uint64, t time.Time) error {
+    // Используем Model(&User{}) для указания таблицы и Where для выбора конкретной строки.
+    // Update обновляет только одно указанное поле.
+    err := engine.DB.Model(&structs.User{}).Where("id = ?", userID).Update("last_bonus_at", t).Error
+    
+    if err != nil {
+        log.Printf("Ошибка при обновлении времени последнего бонуса для пользователя %d: %v", userID, err)
+        return err
+    }
+    
+    return nil
 }
 
 // UpdateUserCache обновляет кеш пользователя, удаляя старые данные и записывая актуальные

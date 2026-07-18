@@ -9,6 +9,8 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
+	"time"
+	"strings"
 )
 
 func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -218,6 +220,130 @@ func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"GitHub: %s", consts.VERSION, consts.DATE_LAST_UPDATE, consts.OWNER, consts.REPO_URL)))
 }
 
+func HandleBonus(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    userID := uint64(message.From.ID)
+    
+    // 1. Получаем время последнего получения бонуса из БД
+    lastBonusTime, err := helpers.GetLastBonusTime(userID)
+    if err != nil {
+        log.Printf("Ошибка получения времени бонуса: %v", err)
+        return
+    }
+
+    // 2. Проверяем, прошло ли 24 часа
+    if time.Since(lastBonusTime).Hours() < 24 {
+        remaining := 24 - time.Since(lastBonusTime).Hours()
+        msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Вы уже получили бонус. Попробуйте через %.0f часов.", remaining))
+        bot.Send(msg)
+        return
+    }
+
+    // 3. Получаем баланс игрока
+    balance, err := engine.GetUserBalance(userID)
+    if err != nil {
+        log.Printf("Ошибка получения баланса: %v", err)
+        return
+    }
+
+    // 4. Начисляем бонус (например, 100 монет)
+    bonusAmount := 100
+    newBalance := uint64(balance) + uint64(bonusAmount)
+
+    // 5. Обновляем баланс в БД
+    err = engine.UpdateBalance(userID, float64(newBalance))
+    if err != nil {
+        log.Printf("Ошибка обновления баланса: %v", err)
+        return
+    }
+
+    // 6. Обновляем время последнего получения бонуса
+    helpers.UpdateLastBonusTime(userID, time.Now())
+
+    // 7. Сообщаем пользователю об успехе
+    msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Вы получили ежедневный бонус: %d монет! Ваш новый баланс: %d", bonusAmount, newBalance))
+    bot.Send(msg)
+}
+
+
+func HandleVip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	chat_id := message.Chat.ID
+	user_id := message.From.ID
+
+	// 1. Проверяем, является ли пользователь VIP
+	is_vip, err := std_helpers.IsUserVIP(uint64(user_id))
+	if err != nil {
+		log.Printf("Ошибка проверки VIP-статуса: %v", err)
+		return
+	}
+
+	if is_vip {
+		// Если пользователь VIP, отправляем сообщение об этом
+		msg := tgbotapi.NewMessage(chat_id, "Вы уже VIP!")
+		bot.Send(msg)
+		return
+	}
+
+	err = helpers.AddVip(uint64(user_id), 1)
+	if err != nil {
+		log.Printf("Ошибка добавления VIP-статуса: %v", err)
+		return
+	}
+
+	// 3. Сообщаем пользователю об успехе
+	msg := tgbotapi.NewMessage(chat_id, "Вы стали VIP!")
+	bot.Send(msg)
+}
+
+func HandleTopMessages(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    log.Printf("Команда /topmsg вызвана пользователем %d", message.From.ID)
+
+    // 1. Дебаг получения данных из БД
+    topUsers, err := helpers.GetTopByMessages(10)
+    if err != nil {
+        log.Printf("Ошибка БД при получении топа: %v", err)
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибка доступа к базе данных."))
+        return
+    }
+
+    log.Printf("Получено пользователей из БД: %d", len(topUsers))
+
+    // 2. Дебаг пустого списка
+    if len(topUsers) == 0 {
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Список лидеров пока пуст."))
+        return
+    }
+
+    var builder strings.Builder
+    builder.WriteString("🏆 **Топ-10 сообщений в чате:**\n\n")
+
+    for i, user := range topUsers {
+        name := user.Username
+        if name == "" {
+            name = user.FirstName
+        }
+        
+        // 3. Дебаг каждого пользователя в консоль
+        log.Printf("User %d: %s, Count: %d", user.ID, name, user.MessageCount)
+        
+		builder.WriteString(fmt.Sprintf("%d. %s — %d сообщений\n", i+1, std_helpers.EscapeMarkdown(name), user.MessageCount))
+	}
+
+    // 4. Проверка сообщения перед отправкой
+    msgText := builder.String()
+    log.Printf("Отправка сообщения: %s", msgText)
+
+    msg := tgbotapi.NewMessage(message.Chat.ID, msgText)
+    msg.ParseMode = "Markdown"
+    
+    // 5. Дебаг результата отправки
+    _, err = bot.Send(msg)
+    if err != nil {
+        log.Printf("Ошибка при отправке сообщения ботом: %v", err)
+    } else {
+        log.Println("Сообщение успешно отправлено")
+    }
+}
+
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	user_id := uint64(message.From.ID)
@@ -241,7 +367,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	parsed_chat_id := std_helpers.ParseChatID(uint64(chatID))
 
 	// 1. Получаем профиль пользователя
-	userProfile, err := helpers.GetUserByID(userID)
+	userProfile, err := helpers.GetOrCreateUser(userID, message.From.UserName, message.From.FirstName)
 	if err != nil {
 		log.Printf("Ошибка профиля: %v", err)
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
@@ -288,6 +414,18 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// 5. Расчет статистики
 	totalReputation := userProfile.NegativeReputation + userProfile.PositiveReputation
 	totalGames := userProfile.Wins + userProfile.Losses
+	vipLevel := userProfile.Vip
+
+
+	vipText := ""
+
+	if vipLevel == 0 {
+		vipText = "Нет"
+	} else {
+		vipText = fmt.Sprintf("%d", vipLevel)
+	}
+	log.Printf("VipLevel: %d", vipLevel)
+
 
 	// 6. Формирование и отправка сообщения
 	text := fmt.Sprintf("👤 **Профиль `%s`:**\n"+
@@ -298,6 +436,8 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"└── **Роль:** `%s`\n"+
 		"└── **Игры:** %d (Побед: %d, Поражений: %d)\n"+
 		"└── **Статус:** %s\n\n"+
+		"└── **VIP:** %s\n\n"+
+
 		"Приятной вам игры в FlorenBot!",
 		userProfile.FirstName,
 		userProfile.Balance,
@@ -311,6 +451,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		userProfile.Wins,
 		userProfile.Losses,
 		statusText,
+		vipText,
 	)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)

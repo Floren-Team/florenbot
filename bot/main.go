@@ -98,6 +98,8 @@ func main() {
 				continue
 			}
 
+			go helper.IncrementMessageCount(uint64(update.Message.From.ID), update.Message.From.UserName, update.Message.From.FirstName)
+
 			handleMessage(bot, update.Message)
 		}
 	}()
@@ -111,6 +113,8 @@ func main() {
 func handleMessage(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	text := message.Text
 	lowerText := strings.ToLower(text)
+
+
 
 	if strings.Contains(lowerText, "спасибо") {
 		log.Printf("Зафиксирована благодарность от @%s", message.From.UserName)
@@ -150,6 +154,7 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
+
 	switch command {
 	case "start":
 		handlers.HandleStart(bot, message)
@@ -169,12 +174,18 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		bones.HandleBones(bot, message)
 	case "q":
 		handlers.HandleQuit(bot, message)
+	case "top":
+		handlers.HandleTopMessages(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
 	case "info":
 		handlers.HandleInfo(bot, message)
 	case "msg":
 		admin_handlers.HandleSendMessage(bot, message)
+	case "bonus":
+		handlers.HandleBonus(bot, message)
+	case "vip": 
+		handlers.HandleVip(bot, message)
 	case "rep":
 		handlers.HandleReputation(bot, message)
 	case "report":

@@ -568,12 +568,14 @@ func HandleStats(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	reply_user_id := reply.From.ID
 
 	// 1. Получаем профиль пользователя
-	userProfile, err := helpers.GetUserByID(uint64(reply_user_id))
+	userProfile, err := helpers.GetOrCreateUser(uint64(reply_user_id), reply.From.UserName, reply.From.FirstName)
 	if err != nil {
 		log.Printf("Ошибка профиля: %v", err)
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить профиль"))
 		return
 	}
+
+	log.Printf("User: %v", userProfile)
 
 	if reply.From.ID == message.From.ID {
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя получить статистику самого себя.\n\nЕсли вы хотите увидеть свою статистику, используйте команду `/profile`"))
