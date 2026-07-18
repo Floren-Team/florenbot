@@ -3,6 +3,7 @@ package helpers
 import (
 	engine "florenbot/engine/mysql"
 	"florenbot/engine/structs"
+	"gorm.io/gorm"
 )
 
 func GetRolesByChatID(chat_id uint64) ([]structs.Role, error) {
@@ -60,6 +61,37 @@ func SetRole(user_id uint64, role_id uint64, chat_id uint64) error {
 		RoleID: role_id,
 	}
 	return engine.DB.Save(&member).Error
+}
+
+// CloneRole копирует данные роли в рамках переданной транзакции
+// CloneRole копирует данные роли, используя GORM транзакцию
+func CloneRole(tx *gorm.DB, sourceRoleID uint64, targetChatID uint64) error {
+    var role structs.Role // Предположим, у тебя есть модель Role
+    
+    // 1. Получаем существующую роль
+    if err := tx.First(&role, sourceRoleID).Error; err != nil {
+        return err
+    }
+
+    // 2. Проверяем дубликат
+    var count int64
+    tx.Model(&structs.Role{}).Where("name = ? AND chat_id = ?", role.Name, targetChatID).Count(&count)
+    if count > 0 {
+        return nil // Роль уже существует, пропускаем
+    }
+
+    // 3. Создаем новую роль (GORM сам сгенерирует новый ID)
+    newRole := structs.Role{
+        Name:   role.Name,
+        ChatID: targetChatID,
+        // Добавь здесь другие поля, если они есть
+    }
+
+    if err := tx.Create(&newRole).Error; err != nil {
+        return err
+    }
+
+    return nil
 }
 
 func InitDefaultRoles(chat_id uint64) error {

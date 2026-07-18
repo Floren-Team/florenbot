@@ -182,6 +182,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleGiveMoney(bot, message)
 	case "pay":
 		handlers.HandlePay(bot, message)
+	case "cloneroles":
+		admin_handlers.HandleCloneRoles(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
 	case "info":

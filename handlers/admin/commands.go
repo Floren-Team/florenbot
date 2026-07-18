@@ -10,6 +10,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"gorm.io/gorm"
 )
 
 func HandleRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -49,136 +50,147 @@ func HandleRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 }
 
 func HandleGiveMoney(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	chat_id := message.Chat.ID
-	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+    chat_id := message.Chat.ID
+    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
 
-	// 1. Проверка прав
-	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
-	if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
-		return
-	}
+    // 1. Проверка прав администратора
+    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+    if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+        return
+    }
 
-	// 2. Получаем данные чата
-	_, err = helpers.GetChatById(int64(parsed_chat_id))
-	if err != nil {
-		log.Printf("Ошибка получения чата: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
-		return
-	}
+    // 2. Получаем данные чата
+    _, err = helpers.GetChatById(int64(parsed_chat_id))
+    if err != nil {
+        log.Printf("Ошибка получения чата: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
+        return
+    }
 
-	args := strings.Fields(message.CommandArguments())
-	if len(args) < 1 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/givemoney  [сумма]`"))
-		return
-	}
+    // Парсинг аргументов
+    args := strings.Fields(message.CommandArguments())
+    if len(args) < 1 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/givemoney [сумма]`"))
+        return
+    }
 
-	reply := message.ReplyToMessage
-	if reply == nil {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
-		return
-	}
+    // Проверка реплая
+    reply := message.ReplyToMessage
+    if reply == nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+        return
+    }
 
-	if reply.From.ID == message.From.ID {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя дать деньги самому себе."))
-		return
-	}
+    if reply.From.ID == message.From.ID {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя дать деньги самому себе."))
+        return
+    }
 
-	reply_user_id := reply.From.ID
+    // Парсинг суммы
+    amount, err := strconv.ParseFloat(args[0], 64)
+    if err != nil || amount <= 0 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверная сумма."))
+        return
+    }
 
-	amount, err := strconv.ParseFloat(args[0], 64)
-	if err != nil || amount <= 0 {
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверная сумма."))
-		return
-	}
+    // 3. Проверяем получателя
+    receiver, err := helpers.GetUserByID(uint64(reply.From.ID))
+    if err != nil {
+        log.Printf("Ошибка получения пользователя: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь не найден."))
+        return
+    }
 
-	// 3. Проверяем, что пользователь существует
-	receiver, err := helpers.GetUserByID(uint64(reply_user_id))
-	if err != nil {
-		log.Printf("Ошибка получения пользователя: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь не найден."))
-		return
-	}
-
-	member, err := helpers.GetMemberRole(uint64(parsed_chat_id), uint64(reply.From.ID))
-	if err != nil {
-		log.Printf("Ошибка получения пользователя: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь не найден."))
-		return
-	}
-
-	if member.BaseShort == "creator" {
-		msg := tgbotapi.NewMessage(chat_id, "❌ Вы не можете выполнить данную команду. Данный пользователь создатель, нельзя выдавать деньги создателю.")
-		msg.ReplyToMessageID = message.MessageID
-		msg.ParseMode = "Markdown"
-		bot.Send(msg)
-		return
-	}
-
-	err = engine.DB.Model(&receiver).Update("balance", receiver.Balance + amount).Error
-	if err != nil {
-		log.Printf("Ошибка обновления баланса: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка обновления баланса."))
-		return
-	}
-
-	// 4. Сообщаем пользователю об успехе
-	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Пользователю `%s`  добавлено `%d` монет.", receiver.FirstName, amount))
-	msg.ReplyToMessageID = message.MessageID
-	msg.ParseMode = "Markdown"
-	bot.Send(msg)
+    // ВАЖНО: Правильный порядок аргументов: сначала userID, потом chatID
+    member, err := helpers.GetMemberRole(uint64(reply.From.ID), uint64(parsed_chat_id))
+    if err != nil {
+        log.Printf("Ошибка получения роли пользователя: %v", err)
+    } else if member.BaseShort == "creator" || member.BaseShort == "owner" {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя выдавать деньги создателю/Владельцу."))
+        return
+    }
 
 
+    // Обновление баланса в БД
+    err = engine.DB.Model(&receiver).Update("balance", receiver.Balance + amount).Error
+    if err != nil {
+        log.Printf("Ошибка обновления баланса: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка обновления баланса."))
+        return
+    }
 
+    // 4. Успешное сообщение
+    // Используем %.2f для красивого вывода денежной суммы
+    msgText := fmt.Sprintf("✅ Пользователю %s добавлено `%.2f` монет.", receiver.FirstName, amount)
+    msg := tgbotapi.NewMessage(chat_id, msgText)
+    msg.ReplyToMessageID = message.MessageID
+    msg.ParseMode = "Markdown"
+    bot.Send(msg)
 }
 
 func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chat_id := message.Chat.ID
 
+	// Определяем ID для поиска: если это супергруппа (отрицательный ID),
+	// делаем его положительным для соответствия структуре БД.
 	searchId := uint64(chat_id)
 	if chat_id < 0 {
 		searchId = uint64(-chat_id)
 	}
 
+	// 1. Пытаемся получить информацию о чате из БД
 	chat, err := helpers.GetChatById(int64(searchId))
 	if err != nil {
-		log.Printf("Ошибка получения чата: %v", err)
-		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
+		log.Printf("[DEBUG] [ERROR] Чат не найден в БД. ChatID: %d, SearchID: %d, Err: %v", chat_id, searchId, err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден в базе данных."))
 		return
 	}
 
+	// 2. Получаем список всех ролей для этого чата
 	roles, err := helpers.GetRolesByChatID(searchId)
 	if err != nil {
-		log.Printf("Ошибка получения ролей: %v", err)
+		log.Printf("[DEBUG] [ERROR] Ошибка загрузки ролей для чата %d: %v", searchId, err)
 		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка загрузки ролей."))
 		return
 	}
 
-	// Используем экранирование для названия чата
+	log.Printf("[DEBUG] Чат: %s | SearchID: %d | Кол-во найденных ролей: %d", chat.Name, searchId, len(roles))
+
+	// Формируем заголовок сообщения
 	text := fmt.Sprintf("📋 *Профиль чата:* `%s`\n\n", std_helpers.EscapeMarkdown(chat.Name))
 
 	if len(roles) > 0 {
 		for _, role := range roles {
 			text += fmt.Sprintf("🎭 *Роль:* `%s` (ID: `%d`)\n", std_helpers.EscapeMarkdown(role.Name), role.ID)
 
+			// 3. Пытаемся получить список пользователей для конкретной роли внутри этого чата
 			users, err := helpers.GetUsersByRole(role.ID, searchId)
-			if err == nil && len(users) > 0 {
-				for _, user := range users {
-					name := user.Username
-					if name == "" {
-						name = user.FirstName
-					}
-					
-					// Экранируем имена пользователей, чтобы не сломать Markdown
-					safeName := std_helpers.EscapeMarkdown(name)
-					if user.Username != "" {
-						text += fmt.Sprintf("└ @%s\n", safeName)
-					} else {
-						text += fmt.Sprintf("└ %s\n", safeName)
-					}
-				}
+			
+			// Дебаггинг запроса пользователей
+			if err != nil {
+				log.Printf("[DEBUG] [ERROR] Ошибка GetUsersByRole для Роли %d (Chat: %d): %v", role.ID, searchId, err)
+				text += "└ _Ошибка загрузки пользователей_\n"
 			} else {
-				text += "└ _Пользователей нет_\n"
+				log.Printf("[DEBUG] Роль: %d | Найдено пользователей: %d", role.ID, len(users))
+				
+				if len(users) > 0 {
+					for _, user := range users {
+						name := user.Username
+						if name == "" {
+							name = user.FirstName
+						}
+						
+						safeName := std_helpers.EscapeMarkdown(name)
+						if user.Username != "" {
+							text += fmt.Sprintf("└ @%s\n", safeName)
+						} else {
+							text += fmt.Sprintf("└ %s\n", safeName)
+						}
+					}
+				} else {
+					text += "└ _В этой роли пока нет участников_\n"
+				}
 			}
 			text += "\n"
 		}
@@ -186,16 +198,89 @@ func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		text += "_Роли в этом чате еще не настроены._"
 	}
 
+	// Отправка сообщения
 	msg := tgbotapi.NewMessage(chat_id, text)
-	msg.ParseMode = tgbotapi.ModeMarkdown // Теперь это безопасно
+	msg.ParseMode = tgbotapi.ModeMarkdown
 	
-	_, err = bot.Send(msg)
+	if _, err = bot.Send(msg); err != nil {
+		log.Printf("[DEBUG] [ERROR] Ошибка отправки сообщения в чат %d: %v", chat_id, err)
+	}
+}
+
+func HandleCloneRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    sourceChatID := uint64(message.Chat.ID)
+    parsedSourceID := std_helpers.ParseChatID(sourceChatID)
+
+
+	_, err := helpers.GetChatById(parsedSourceID)
 	if err != nil {
-		log.Printf("Ошибка отправки сообщения: %v", err)
+		bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Чат не найден."))
+		return
 	}
 
+    // 1. Проверка прав: может ли пользователь управлять ролями в текущем чате
+    memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsedSourceID))
+    if err != nil || !std_helpers.IsUserCreator(&memberRole) {
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ У вас нет прав для выполнения этой команды."))
+        return
+    }
 
+    // Получаем аргументы команды (ID целевого чата)
+    args := strings.Fields(message.CommandArguments())
+    if len(args) < 1 {
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Ошибка: укажите ID чата, в который нужно клонировать роли."))
+        return
+    }
+
+    targetID_raw, err := strconv.ParseInt(args[0], 10, 64)
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Ошибка: неверный ID чата."))
+        return
+    }
+    targetChatID := uint64(targetID_raw)
+
+    // Защита от клонирования в тот же чат
+    if targetChatID == uint64(sourceChatID) {
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Ошибка: нельзя клонировать роли в тот же самый чат."))
+        return
+    }
+
+    // 2. Получаем список всех ролей исходного чата
+    roles, err := helpers.GetRolesByChatID(uint64(parsedSourceID))
+    if err != nil {
+        log.Printf("[ERROR] Ошибка загрузки ролей для чата %d: %v", parsedSourceID, err)
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Ошибка загрузки ролей."))
+        return
+    }
+
+    if len(roles) == 0 {
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "⚠️ В этом чате нет настроенных ролей для клонирования."))
+        return
+    }
+
+    // 3. Клонирование через транзакцию GORM
+    // Используем db.Transaction, чтобы гарантировать целостность данных:
+    // если при клонировании одной из ролей произойдет сбой, все изменения откатятся назад.
+    err = engine.DB.Transaction(func(tx *gorm.DB) error {
+        for _, role := range roles {
+            // Передаем транзакционный объект tx в функцию CloneRole
+            if err := helpers.CloneRole(tx, role.ID, targetChatID); err != nil {
+                return err // Возврат ошибки автоматически инициирует Rollback
+            }
+        }
+        return nil // Возврат nil автоматически подтверждает транзакцию (Commit)
+    })
+
+    // 4. Обработка результата транзакции
+    if err != nil {
+        log.Printf("[ERROR] Транзакция клонирования ролей не удалась для чата %d: %v", targetChatID, err)
+        bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "❌ Ошибка при клонировании ролей. Все изменения отменены."))
+        return
+    }
+
+    bot.Send(tgbotapi.NewMessage(int64(sourceChatID), "✅ Роли успешно и безопасно клонированы в новый чат."))
 }
+
 // HandleSetRole обрабатывает команду /setrole <username> <role_id>
 func HandleSetRole(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chat_id := message.Chat.ID
