@@ -176,6 +176,10 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleQuit(bot, message)
 	case "top":
 		handlers.HandleTopMessages(bot, message)
+	case "topbal":
+		handlers.HandleTopBalance(bot, message)
+	case "pay":
+		handlers.HandlePay(bot, message)
 	case "promo":
 		handlers.HandlePromo(bot, message)
 	case "info":

@@ -11,6 +11,7 @@ import (
 	"log"
 	"time"
 	"strings"
+	"strconv"
 )
 
 func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -294,18 +295,124 @@ func HandleVip(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	bot.Send(msg)
 }
 
+
+func HandlePay(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    chat_id := message.Chat.ID
+    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+
+    _, err := helpers.GetChatById(parsed_chat_id)
+    if err != nil {
+        log.Printf("Ошибка получения чата: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
+        return
+    }
+
+    args := strings.Fields(message.CommandArguments())
+    if len(args) < 1 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/pay [сумма]`"))
+        return
+    }
+
+    amount, err := strconv.ParseFloat(args[0], 64)
+    if err != nil || amount <= 0 {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверная сумма."))
+        return
+    }
+    reply := message.ReplyToMessage
+    if reply == nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+        return
+    }
+
+    sender, err := helpers.GetUserByID(uint64(message.From.ID))
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ваш профиль не найден."))
+        return
+    }
+
+    receiver, err := helpers.GetUserByID(uint64(reply.From.ID))
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Профиль получателя не найден."))
+        return
+    }
+
+    if sender.Balance < amount {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Недостаточно средств."))
+        return
+    }
+
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+	if err != nil || !std_helpers.IsUserOwner(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+		return
+	}
+
+	if memberRole.BaseShort == "creator" {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды.\n"+
+		"Нельзя переводить деньги создателю!"))
+		return
+	}
+
+	engine.DB.Model(&sender).Update("balance", sender.Balance - amount)
+    engine.DB.Model(&receiver).Update("balance", receiver.Balance + amount)
+	successMsg := fmt.Sprintf("✅ Успешно переведено `%.2f` $ пользователю %s", amount, reply.From.FirstName)
+    msg := tgbotapi.NewMessage(chat_id, successMsg)
+    msg.ParseMode = "Markdown"
+    bot.Send(msg)
+}
+
+func HandleTopBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+
+    // Відправляємо повідомлення про початок обробки
+    msgProcessing := tgbotapi.NewMessage(message.Chat.ID, "Обработка....")
+    sentMsg, _ := bot.Send(msgProcessing)
+
+    // 1. Отримання даних з БД
+    topUsers, err := helpers.GetTopByBalance(10)
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибка доступа к базе данных."))
+        return
+    }
+
+    if len(topUsers) == 0 {
+        bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Список лидеров пока пуст."))
+        return
+    }
+
+    var builder strings.Builder
+    builder.WriteString("🏆 *Топ-10 балансов:*\n\n")
+
+    for i, user := range topUsers {
+        name := user.Username
+        if name == "" {
+            name = user.FirstName
+        }
+        
+        safeName := strings.NewReplacer("_", "\\_", "*", "\\*", "[", "\\[", "`", "\\`").Replace(name)
+        
+        builder.WriteString(fmt.Sprintf("%d. %s — `%.2f` $\n", i+1, safeName, user.Balance))
+    }
+
+    // 2. Редагуємо повідомлення "Обработка..." замість надсилання нового
+    editMsg := tgbotapi.NewEditMessageText(message.Chat.ID, sentMsg.MessageID, builder.String())
+    editMsg.ParseMode = "Markdown"
+    
+    _, err = bot.Send(editMsg)
+    if err != nil {
+        log.Printf("Ошибка при редактировании сообщения: %v", err)
+    }
+}
+
 func HandleTopMessages(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     log.Printf("Команда /topmsg вызвана пользователем %d", message.From.ID)
 
     // 1. Дебаг получения данных из БД
     topUsers, err := helpers.GetTopByMessages(10)
     if err != nil {
-        log.Printf("Ошибка БД при получении топа: %v", err)
         bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ошибка доступа к базе данных."))
         return
     }
 
-    log.Printf("Получено пользователей из БД: %d", len(topUsers))
 
     // 2. Дебаг пустого списка
     if len(topUsers) == 0 {
@@ -322,8 +429,6 @@ func HandleTopMessages(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
             name = user.FirstName
         }
         
-        // 3. Дебаг каждого пользователя в консоль
-        log.Printf("User %d: %s, Count: %d", user.ID, name, user.MessageCount)
         
 		builder.WriteString(fmt.Sprintf("%d. %s — %d сообщений\n", i+1, std_helpers.EscapeMarkdown(name), user.MessageCount))
 	}
@@ -424,7 +529,6 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	} else {
 		vipText = fmt.Sprintf("%d", vipLevel)
 	}
-	log.Printf("VipLevel: %d", vipLevel)
 
 
 	// 6. Формирование и отправка сообщения

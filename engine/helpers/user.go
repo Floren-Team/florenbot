@@ -108,6 +108,17 @@ func IncrementMessageCount(userID uint64, username string, firstName string) {
     }
 }
 
+func GetTopByBalance(limit int) ([]structs.User, error) {
+	var topUsers []structs.User
+	
+	// Сортуємо за balance у спадному порядку
+	err := engine.DB.Model(&structs.User{}).
+		Order("balance DESC").
+		Limit(limit).
+		Find(&topUsers).Error
+		
+	return topUsers, err
+}
 
 func GetTopByMessages(limit int) ([]structs.User, error) {
     var topUsers []structs.User
