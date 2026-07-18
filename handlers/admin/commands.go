@@ -35,7 +35,7 @@ func HandleRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	// 3. Формируем текст сообщения
 
 	// Заголовок сообщения
-	text := fmt.Sprintf("📋 **Профиль чата:** `%s`\n\n", chat.Name)
+	text := fmt.Sprintf("📋 **Профиль чата:** `%s`\n\nID: %d\n\n\n\n", chat.Name, parsed_chat_id)
 
 	// Список ролей
 	for _, role := range roles {
@@ -46,6 +46,90 @@ func HandleRoles(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	// Отправляем сообщение
 	bot.Send(msg)
+}
+
+func HandleGiveMoney(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	chat_id := message.Chat.ID
+	parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+
+	// 1. Проверка прав
+	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
+	if err != nil || !std_helpers.IsUserOwnerOrCreator(&memberRole) {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+		return
+	}
+
+	// 2. Получаем данные чата
+	_, err = helpers.GetChatById(int64(parsed_chat_id))
+	if err != nil {
+		log.Printf("Ошибка получения чата: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Чат не найден."))
+		return
+	}
+
+	args := strings.Fields(message.CommandArguments())
+	if len(args) < 1 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Используйте: `/givemoney  [сумма]`"))
+		return
+	}
+
+	reply := message.ReplyToMessage
+	if reply == nil {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Команда должна быть ответом на сообщение."))
+		return
+	}
+
+	if reply.From.ID == message.From.ID {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Нельзя дать деньги самому себе."))
+		return
+	}
+
+	reply_user_id := reply.From.ID
+
+	amount, err := strconv.ParseFloat(args[0], 64)
+	if err != nil || amount <= 0 {
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Неверная сумма."))
+		return
+	}
+
+	// 3. Проверяем, что пользователь существует
+	receiver, err := helpers.GetUserByID(uint64(reply_user_id))
+	if err != nil {
+		log.Printf("Ошибка получения пользователя: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь не найден."))
+		return
+	}
+
+	member, err := helpers.GetMemberRole(uint64(parsed_chat_id), uint64(reply.From.ID))
+	if err != nil {
+		log.Printf("Ошибка получения пользователя: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Пользователь не найден."))
+		return
+	}
+
+	if member.BaseShort == "creator" {
+		msg := tgbotapi.NewMessage(chat_id, "❌ Вы не можете выполнить данную команду. Данный пользователь создатель, нельзя выдавать деньги создателю.")
+		msg.ReplyToMessageID = message.MessageID
+		msg.ParseMode = "Markdown"
+		bot.Send(msg)
+		return
+	}
+
+	err = engine.DB.Model(&receiver).Update("balance", receiver.Balance + amount).Error
+	if err != nil {
+		log.Printf("Ошибка обновления баланса: %v", err)
+		bot.Send(tgbotapi.NewMessage(chat_id, "❌ Ошибка обновления баланса."))
+		return
+	}
+
+	// 4. Сообщаем пользователю об успехе
+	msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("✅ Пользователю `%s`  добавлено `%d` монет.", receiver.FirstName, amount))
+	msg.ReplyToMessageID = message.MessageID
+	msg.ParseMode = "Markdown"
+	bot.Send(msg)
+
+
+
 }
 
 func HandleStaff(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {

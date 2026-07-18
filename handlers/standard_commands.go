@@ -341,8 +341,8 @@ func HandlePay(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
         return
     }
 
-	memberRole, err := helpers.GetMemberRole(uint64(message.From.ID), uint64(parsed_chat_id))
-	if err != nil || !std_helpers.IsUserOwner(&memberRole) {
+	memberRole, err := helpers.GetMemberRole(uint64(receiver.ID), uint64(parsed_chat_id))
+	if err != nil  {
 		bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
 		return
 	}
@@ -479,17 +479,46 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	// 2. Получаем роль пользователя в текущем чате
-	var member structs.Member
-	// Загружаем связь с ролью, чтобы получить её название
-	err = engine.DB.Preload("Role").
-		Where("user_id = ? AND chat_id = ?", userID, parsed_chat_id).
-		First(&member).Error
 
-	roleName := "Нет роли" // Значение по умолчанию
-	if err == nil && member.Role.Name != "" {
-		roleName = member.Role.Name
+	chat_title := ""
+
+	if message.Chat.Type == "private" {
+		chat_title = ""
+	} else {
+		chat, err := helpers.GetChatById(parsed_chat_id)
+		if err != nil {
+			log.Printf("Ошибка чата: %v", err)
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Не удалось получить чат"))
+			return
+		}
+
+
+		if chat == nil {
+			chat_title = "Нет чата"
+		} else {
+			chat_title = chat.Name
+		}
 	}
+
+	roleName := ""
+	if message.Chat.Type == "private" {
+		roleName = "Нет роли"
+	} else {
+		// 2. Получаем роль пользователя в текущем чате
+		var member structs.Member
+		// Загружаем связь с ролью, чтобы получить её название
+		err = engine.DB.Preload("Role").
+			Where("user_id = ? AND chat_id = ?", userID, parsed_chat_id).
+			First(&member).Error
+
+		roleName = "Нет роли" // Значение по умолчанию
+		if err == nil && member.Role.Name != "" {
+			roleName = member.Role.Name
+		}
+	}
+
+
+	log.Printf("User: %v in Chat: %d, Role: %s", userProfile, parsed_chat_id, roleName)
 
 	// 3. Расчет статуса
 	newStatus := 0
@@ -539,9 +568,9 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"└── **Репутация:** `%d` (поз: %d, нег: %d)\n"+
 		"└── **Роль:** `%s`\n"+
 		"└── **Игры:** %d (Побед: %d, Поражений: %d)\n"+
-		"└── **Статус:** %s\n\n"+
-		"└── **VIP:** %s\n\n"+
-
+		"└── **Статус:** %s\n"+
+		"└── **VIP:** %s\n"+
+		"└── **Имя чата:** %s\n"+
 		"Приятной вам игры в FlorenBot!",
 		userProfile.FirstName,
 		userProfile.Balance,
@@ -556,6 +585,7 @@ func HandleProfile(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		userProfile.Losses,
 		statusText,
 		vipText,
+		chat_title,
 	)
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, text)
