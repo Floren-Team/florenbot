@@ -265,6 +265,11 @@ func HandlePromo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 			return
 		}
 
+		if uint64(promo.OwnerID) == user_id {
+			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Нельзя активировать свой промокод!"))
+			return
+		}
+
 		amount := promo.Amount
 
 		// 4. Активация: записываем код пользователю (только в БД)

@@ -89,6 +89,8 @@ func HandleReport(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 				return
 			}
 
+			
+
 			bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Ок, брат, я тебя понял))"))
 			return
 
