@@ -1,8 +1,8 @@
 package consts
 
-const VERSION = "8.0"
+const VERSION = "8.0-1 (Extended Release Update)"
 
-const DATE_LAST_UPDATE = "18.07.2026"
+const DATE_LAST_UPDATE = "10.08.2026 (ESR)"
 
 const OWNER = "Egor Luchiy"
 

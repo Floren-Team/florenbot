@@ -203,7 +203,9 @@ func HandleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		}
 
 		err = helpers.AddMemberRole(user.ID, "owner", db_id)
-
+		if err != nil {
+			log.Printf("Ошибка инициализации ролей: %v", err)
+		}
 		bot.Send(tgbotapi.NewMessage(chat_id, "✅ Чат успешно зарегистрирован!\n"+
 			"Роли инициализированы! Просмотреть роли можно командой /roles"))
 
@@ -258,7 +260,7 @@ func HandleBonus(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     }
 
     // 6. Обновляем время последнего получения бонуса
-    helpers.UpdateLastBonusTime(userID, time.Now())
+    _ = helpers.UpdateLastBonusTime(userID, time.Now())
 
     // 7. Сообщаем пользователю об успехе
     msg := tgbotapi.NewMessage(message.Chat.ID, fmt.Sprintf("Вы получили ежедневный бонус: %d монет! Ваш новый баланс: %d", bonusAmount, newBalance))

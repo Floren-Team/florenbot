@@ -62,7 +62,7 @@ func checkAndUpdate() bool {
 			BrowserDownloadURL string `json:"browser_download_url"`
 		} `json:"assets"`
 	}
-	json.NewDecoder(resp.Body).Decode(&release)
+	_ = json.NewDecoder(resp.Body).Decode(&release)
 
 	// Читаємо поточну версію
 	var currentVer string
@@ -111,11 +111,22 @@ func performUpdate(url, filename string) bool {
 	}
 	defer resp.Body.Close()
 
-	out, _ := os.Create(tmpPath)
+	out, err := os.Create(tmpPath)
+if err != nil {
+    log.Printf("[ERROR] Create file failed: %v", err)
+    return false
+}
+
 	_, err = io.Copy(out, resp.Body)
-	out.Close()
+	// Закрываем файл и проверяем ошибку закрытия, если это критично, 
+	// либо просто закрываем с помощью defer, но в данном случае лучше явно:
+	closeErr := out.Close()
 	if err != nil {
 		log.Printf("[ERROR] Write failed: %v", err)
+		return false
+	}
+	if closeErr != nil {
+		log.Printf("[ERROR] Close file failed: %v", closeErr)
 		return false
 	}
 
@@ -155,7 +166,7 @@ func untar(path, dest string) error {
 		log.Printf("[DEBUG] Extracting: %s", header.Name)
 
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-		io.Copy(outFile, tr)
+		_, _ = io.Copy(outFile, tr)
 		outFile.Close()
 	}
 	return nil
@@ -173,7 +184,7 @@ func unzip(path, dest string) error {
 
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		rc, _ := f.Open()
-		io.Copy(outFile, rc)
+		_, _ = io.Copy(outFile, rc)
 		outFile.Close()
 		rc.Close()
 	}

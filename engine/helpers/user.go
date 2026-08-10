@@ -76,7 +76,7 @@ func saveUserToCache(user structs.User) {
 		    "first_name":				user.FirstName,
 		}
 		_ = cache.HMSet(key, vals)
-		cache.Expire(key, 10*time.Minute)
+		_ = cache.Expire(key, 10*time.Minute)
 	case "local":
 		_ = os.MkdirAll("cache", 0755)
 		filename := fmt.Sprintf("cache/user_%d.json", user.ID)

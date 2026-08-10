@@ -253,7 +253,7 @@ func handleNewMembers(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		// 1. Проверяем бан
 		isBanned := helper.IsUserBanned(user_id)
 		if isBanned {
-			bot.Request(tgbotapi.BanChatMemberConfig{
+			_, _ = bot.Request(tgbotapi.BanChatMemberConfig{
 				ChatMemberConfig: tgbotapi.ChatMemberConfig{
 					ChatID: int64(chat_id),
 					UserID: int64(user_id),
