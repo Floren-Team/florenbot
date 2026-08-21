@@ -53,13 +53,16 @@ jobs:
         run: |
          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} ./bot
 
+    
       - name: Sign Windows Executable
         if: matrix.windows == true
         env:
           CODESIGN_CERT_BASE64: ${{ secrets.CODESIGN_CERT_BASE64 }}
           CODESIGN_CERT_PASSWORD: ${{ secrets.CODESIGN_CERT_PASSWORD }}
         run: |
-          echo "$CODESIGN_CERT_BASE64" | base64 -d > cert.pfx
+          # Використовуємо -d та -i (ignore-garbage), щоб стійко декодувати Base64 з можливими переносами рядків
+          echo "$CODESIGN_CERT_BASE64" | base64 -di > cert.pfx
+          
           osslsigncode sign -pkcs12 cert.pfx -pass "$CODESIGN_CERT_PASSWORD" -in florenbot.exe -out florenbot_signed.exe -t http://timestamp.digicert.com
           mv florenbot_signed.exe florenbot.exe
 
