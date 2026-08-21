@@ -1,0 +1,63 @@
+name: Compile, Encrypt and Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Чеккаут кода
+        uses: actions/checkout@v4
+
+      - name: Установка Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Импорт публичного ключа GPG
+        run: |
+          echo "${{ secrets.GPG_PUBLIC_KEY }}" > publickey.asc
+          gpg --import publickey.asc
+          # Получаем Key ID для шифрования
+          GPG_KEY_ID=$(gpg --list-keys --with-colons | grep '^pub' | cut -d: -f5)
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> $GITHUB_ENV
+
+      - name: Компиляция и шифрование бинарников
+        run: |
+          # Список целевых платформ
+          targets=(
+            "windows/amd64/florenbot-win-x64.exe"
+            "windows/386/florenbot-win-x86.exe"
+            "linux/amd64/florenbot-linux-amd64"
+            "linux/arm64/florenbot-linux-arm64"
+          )
+
+          mkdir -p dist
+
+          for target in "${targets[@]}"; do
+            IFS="/" read -r GOOS GOARCH OUT_NAME <<< "$target"
+            echo "Компиляция для $GOOS/$GOARCH..."
+            
+            # Компиляция
+            GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -ldflags="-s -w" -o "dist/$OUT_NAME" .
+            
+            # Архивирование
+            tar -czf "dist/${OUT_NAME}.tar.gz" -C dist "$OUT_NAME"
+            rm "dist/$OUT_NAME"
+            
+            # Шифрование ПУБЛИЧНЫМ ключом (без паролей и приватных ключей)
+            gpg --batch --yes --trust-model always -e -r "$GPG_KEY_ID" "dist/${OUT_NAME}.tar.gz"
+            
+            # Удаляем незашифрованный архив, оставляем только .gpg
+            rm "dist/${OUT_NAME}.tar.gz"
+          done
+
+      - name: Создание GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.gpg
+            publickey.asc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
