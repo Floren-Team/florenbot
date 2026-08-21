@@ -51,7 +51,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} .
+          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} ./bot
 
       - name: Import GPG Key
         uses: crazy-max/ghaction-import-gpg@v6
