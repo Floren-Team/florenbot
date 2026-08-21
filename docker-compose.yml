@@ -33,15 +33,21 @@ services:
     networks:
       - florenbot
 
-  adminer:
-    image: adminer
-    container_name: florenbot_adminer
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
     restart: always
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 300M
     ports:
-      - "8080:8080"
-    command: php -S 0.0.0.0:8080 -t /var/www/html
+      - "8080:80"
     networks:
       - florenbot
+    depends_on:
+      mariadb:
+        condition: service_healthy
 
   mariadb:
     image: mariadb:10.11
