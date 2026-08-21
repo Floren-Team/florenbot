@@ -51,13 +51,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} ./bot
-
-      - name: Import GPG Key
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} .
 
       - name: Sign Windows Executable
         if: matrix.windows == true
@@ -74,7 +68,6 @@ jobs:
           ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
           zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
           gpg --symmetric --batch --passphrase "${{ secrets.GPG_PASSPHRASE }}" "$ARCHIVE_NAME"
-          # Зітреться архів, залишиться зашифрований .zip.gpg
 
       - name: Upload Artifacts for Release
         uses: actions/upload-artifact@v4
