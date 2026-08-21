@@ -65,16 +65,32 @@ jobs:
 
       - name: Create Archives and Encrypt
         run: |
-          # Створюємо звичайні робочі архіви для користувачів
-          if [ "${{ matrix.windows }}" = "true" ]; then
-            ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
-            zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
-          else
-            ARCHIVE_NAME="florenteam-${{ matrix.name }}.tar.gz"
-            tar -czf "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+          # Проверяем наличие файла сертификата (поддерживает именование ca.crt или rootCA.crt)
+          CERT_FILE=""
+          if [ -f "rootCA.crt" ]; then
+            CERT_FILE="rootCA.crt"
+          elif [ -f "ca.crt" ]; then
+            CERT_FILE="ca.crt"
           fi
 
-          # Створюємо також зашифровану копію архіву з ключем (.gpg)
+          # Создаем архивы и добавляем туда сертификат, если он найден в репозитории
+          if [ "${{ matrix.windows }}" = "true" ]; then
+            ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
+            if [ -n "$CERT_FILE" ]; then
+              zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }} "$CERT_FILE"
+            else
+              zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+            fi
+          else
+            ARCHIVE_NAME="florenteam-${{ matrix.name }}.tar.gz"
+            if [ -n "$CERT_FILE" ]; then
+              tar -czf "$ARCHIVE_NAME" florenbot${{ matrix.ext }} "$CERT_FILE"
+            else
+              tar -czf "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+            fi
+          fi
+
+          # Создаем также зашифрованную копию архива с ключом (.gpg)
           gpg --symmetric --batch --passphrase "${{ secrets.GPG_PASSPHRASE }}" "$ARCHIVE_NAME"
 
       - name: Upload Artifacts for Release
@@ -82,9 +98,9 @@ jobs:
         with:
           name: release-files-${{ matrix.name }}
           path: |
-            florenteam-*.zip
-            florenteam-*.tar.gz
-            florenteam-*.gpg
+            florenbot-*.zip
+            florenbot-*.tar.gz
+            florenbot-*.gpg
 
   release:
     needs: build-and-release
