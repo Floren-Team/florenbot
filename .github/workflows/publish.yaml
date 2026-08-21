@@ -51,9 +51,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-         go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} ./bot
+          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} ./bot
 
-    
       - name: Sign Windows Executable
         if: matrix.windows == true
         env:
@@ -64,17 +63,28 @@ jobs:
           osslsigncode sign -pkcs12 cert.pfx -pass "$CODESIGN_CERT_PASSWORD" -in florenbot.exe -out florenbot_signed.exe -t http://timestamp.digicert.com
           mv florenbot_signed.exe florenbot.exe
 
-      - name: Create Archive and Encrypt with GPG
+      - name: Create Archives and Encrypt
         run: |
-          ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
-          zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+          # Створюємо звичайні робочі архіви для користувачів
+          if [ "${{ matrix.windows }}" = "true" ]; then
+            ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
+            zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+          else
+            ARCHIVE_NAME="florenteam-${{ matrix.name }}.tar.gz"
+            tar -czf "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+          fi
+
+          # Створюємо також зашифровану копію архіву з ключем (.gpg)
           gpg --symmetric --batch --passphrase "${{ secrets.GPG_PASSPHRASE }}" "$ARCHIVE_NAME"
 
       - name: Upload Artifacts for Release
         uses: actions/upload-artifact@v4
         with:
           name: release-files-${{ matrix.name }}
-          path: florenteam-*.zip.gpg
+          path: |
+            florenteam-*.zip
+            florenteam-*.tar.gz
+            florenteam-*.gpg
 
   release:
     needs: build-and-release
