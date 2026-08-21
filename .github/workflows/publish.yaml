@@ -1,0 +1,106 @@
+name: Build, Sign, and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          - name: linux-amd64
+            goos: linux
+            goarch: amd64
+            ext: ''
+            windows: false
+          - name: linux-arm64
+            goos: linux
+            goarch: arm64
+            ext: ''
+            windows: false
+          - name: windows-amd64
+            goos: windows
+            goarch: amd64
+            ext: '.exe'
+            windows: true
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osslsigncode zip
+
+      - name: Build Application (${{ matrix.name }})
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags="-s -w" -o florenbot${{ matrix.ext }} .
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Sign Windows Executable
+        if: matrix.windows == true
+        env:
+          CODESIGN_CERT_BASE64: ${{ secrets.CODESIGN_CERT_BASE64 }}
+          CODESIGN_CERT_PASSWORD: ${{ secrets.CODESIGN_CERT_PASSWORD }}
+        run: |
+          echo "$CODESIGN_CERT_BASE64" | base64 -d > cert.pfx
+          osslsigncode sign -pkcs12 cert.pfx -pass "$CODESIGN_CERT_PASSWORD" -in florenbot.exe -out florenbot_signed.exe -t http://timestamp.digicert.com
+          mv florenbot_signed.exe florenbot.exe
+
+      - name: Create Archive and Encrypt with GPG
+        run: |
+          ARCHIVE_NAME="florenteam-${{ matrix.name }}.zip"
+          zip "$ARCHIVE_NAME" florenbot${{ matrix.ext }}
+          gpg --symmetric --batch --passphrase "${{ secrets.GPG_PASSPHRASE }}" "$ARCHIVE_NAME"
+          # Зітреться архів, залишиться зашифрований .zip.gpg
+
+      - name: Upload Artifacts for Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-files-${{ matrix.name }}
+          path: florenteam-*.zip.gpg
+
+  release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0-manual' }}
+          name: Release ${{ github.ref_type == 'tag' && github.ref_name || 'Manual Build' }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
