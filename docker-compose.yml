@@ -1,6 +1,6 @@
 services:
   bot:
-    build: .
+    image: ghcr.io/florenbot/florenbot:latest
     container_name: florenbot
     restart: always
     env_file:
@@ -32,6 +32,7 @@ services:
           memory: 256M
     networks:
       - florenbot
+
   adminer:
     image: adminer
     container_name: florenbot_adminer
@@ -56,12 +57,14 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 40s
     networks:
       - florenbot
+
   redis:
     image: redis:alpine
     container_name: florenbot_redis
