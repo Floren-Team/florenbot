@@ -60,10 +60,7 @@ jobs:
           CODESIGN_CERT_BASE64: ${{ secrets.CODESIGN_CERT_BASE64 }}
           CODESIGN_CERT_PASSWORD: ${{ secrets.CODESIGN_CERT_PASSWORD }}
         run: |
-          echo "$CODESIGN_CERT_BASE64" > cert_b64.txt
-          openssl base64 -d -in cert_b64.txt -out cert.pfx
-          
-
+          echo -n "$CODESIGN_CERT_BASE64" | base64 -d > cert.pfx
           osslsigncode sign -pkcs12 cert.pfx -pass "$CODESIGN_CERT_PASSWORD" -in florenbot.exe -out florenbot_signed.exe -t http://timestamp.digicert.com
           mv florenbot_signed.exe florenbot.exe
 
