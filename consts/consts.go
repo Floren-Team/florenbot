@@ -1,9 +1,9 @@
 package consts
 
-const VERSION = "8.0"
+const VERSION = "8.1"
 
-const DATE_LAST_UPDATE = "18.07.2026"
+const DATE_LAST_UPDATE = "21.08.2026"
 
 const OWNER = "Egor Luchiy"
 
-const REPO_URL = "https://github.com/Floren-Team/florenbot"
+const REPO_URL = "https://github.com/FlorenBot/florenbot"

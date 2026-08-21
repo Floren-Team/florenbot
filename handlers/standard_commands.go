@@ -80,6 +80,7 @@ func HandleProfilePrivate(user_id uint64, bot *tgbotapi.BotAPI, message *tgbotap
 		log.Printf("Пользователь %s начал игровой клуб", message.From.FirstName)
 		log.Printf("Результат: %v, %v", userProfile, err)
 	}
+	
 	if err != nil {
 		if debug_type {
 			log.Printf("Ошибка при старте: %v", err)

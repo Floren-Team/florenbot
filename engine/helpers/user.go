@@ -203,38 +203,45 @@ func GetUserByID(tgID uint64) (structs.User, error) {
 
 // GetOrCreateUser находит пользователя или создает нового, сохраняя его в БД и кеш
 func GetOrCreateUser(tgID uint64, username string, firstName string) (structs.User, error) {
-	user, err := GetUserByID(tgID)
+    var user structs.User
 
-	// Если пользователь найден, возвращаем его
-	if err == nil {
-		return user, nil
-	}
+    // Пытаемся найти пользователя по ID
+    err := engine.DB.First(&user, "id = ?", tgID).Error
+    if err == nil {
+        return user, nil
+    }
 
-	// Если ошибка не "не найден", возвращаем её
-	if err.Error() != fmt.Sprintf("user %d not found", tgID) {
-		return structs.User{}, err
-	}
+    // Если ошибка не связана с тем, что запись не найдена, возвращаем её
+    if !errors.Is(err, gorm.ErrRecordNotFound) {
+        return structs.User{}, err
+    }
 
-	// Создаем нового пользователя
-	newUser := structs.User{
-		ID:                 tgID,
-		Username:           username,
-		FirstName:          firstName,
-		Balance:            300000,
-		NegativeReputation: 0,
-		PositiveReputation: 0,
-	}
+    // Пользователь не найден, пытаемся создать
+    newUser := structs.User{
+        ID:                 tgID,
+        Username:           username,
+        FirstName:          firstName,
+        Balance:            300000,
+        NegativeReputation: 0,
+        PositiveReputation: 0,
+    }
 
-	// Сохраняем в БД
-	if err := engine.DB.Create(&newUser).Error; err != nil {
-		return structs.User{}, err
-	}
+    if err := engine.DB.Create(&newUser).Error; err != nil {
+        // Если сработал дубликат ключа (параллельный поток уже создал запись)
+        if errors.Is(err, gorm.ErrDuplicatedKey) {
+            // Просто считываем уже созданного пользователя
+            if readErr := engine.DB.First(&user, "id = ?", tgID).Error; readErr == nil {
+                saveUserToCache(user)
+                return user, nil
+            }
+        }
+        return structs.User{}, err
+    }
 
-	// Обязательно сохраняем в кеш сразу после создания
-	saveUserToCache(newUser)
-
-	return newUser, nil
+    saveUserToCache(newUser)
+    return newUser, nil
 }
+
 func IsCommandRestricted(userID uint64, chatID uint64, command string) (bool, error) {
     var count int64
     err := engine.DB.Model(&structs.UserCommandRestriction{}).

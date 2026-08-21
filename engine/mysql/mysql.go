@@ -39,6 +39,7 @@ func ConnectDB() {
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: false,
+		TranslateError: true,
 	})
 	if err != nil {
 		log.Panicf("Не удалось подключиться к базе данных: %v", err)
