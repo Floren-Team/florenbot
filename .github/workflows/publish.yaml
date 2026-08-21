@@ -60,8 +60,8 @@ jobs:
           CODESIGN_CERT_BASE64: ${{ secrets.CODESIGN_CERT_BASE64 }}
           CODESIGN_CERT_PASSWORD: ${{ secrets.CODESIGN_CERT_PASSWORD }}
         run: |
-          # Використовуємо -d та -i (ignore-garbage), щоб стійко декодувати Base64 з можливими переносами рядків
-          echo "$CODESIGN_CERT_BASE64" | base64 -di > cert.pfx
+          # Видаляємо заголовки, пробіли та переноси рядків, залишаючи лише чистий Base64
+          echo "$CODESIGN_CERT_BASE64" | tr -d '\r\n ' | sed 's/-----.*-----//g' | base64 -d > cert.pfx
           
           osslsigncode sign -pkcs12 cert.pfx -pass "$CODESIGN_CERT_PASSWORD" -in florenbot.exe -out florenbot_signed.exe -t http://timestamp.digicert.com
           mv florenbot_signed.exe florenbot.exe
