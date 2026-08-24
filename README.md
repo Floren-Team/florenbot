@@ -88,4 +88,4 @@ go run main.go
 
 ## Инструкции к билду на Debian 13:
 
-https://github.com/Floren-Team/florenbot/blob/main/BULDING.md
+https://github.com/FlorenBot/florenbot/blob/main/BUILDING.md
