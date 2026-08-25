@@ -12,7 +12,6 @@ LICENSE
 Dockerfile
 CONTRIBUTING.md
 CHANGELOG.md
-BUILDING.md
 README.md
 .git
 .dockerignore
@@ -22,3 +21,4 @@ bat
 *.ini
 Makefile
 docker-compose.yml
+BUILDING.md
