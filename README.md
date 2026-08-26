@@ -68,7 +68,7 @@
     DB_PASSWORD=
     DB_NAME=
     DB_ROOT_PASSWORD=
-   REDIS_ADDR=localhost:6379
+   
    ```
 
 ## 3. Запустите проект
