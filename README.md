@@ -51,19 +51,19 @@
 1. Клонируйте репозиторий
 
  ```bash
-   git clone <ссылка-на-репозиторий>
-   cd game-bot
+   git clone <ссылка-на-репозиторий> florenbot
+   cd florenbot
  ```
 
 2. **Настройка окружения:**
-   Скопируйте `.env.example` в `.env` и укажите параметры подключения к базам данных:
+   Скопируйте `.env.docker.example` в `.env` и укажите параметры подключения к базам данных:
    ```env
     REDIS_ADDR=localhost:6379
     REDIS_PASSWORD=
     REDIS_DB=0
     
     DB_HOST=localhost
-    DB_PORT=5432
+    DB_PORT=3306
     DB_USER=
     DB_PASSWORD=
     DB_NAME=
@@ -71,17 +71,12 @@
    REDIS_ADDR=localhost:6379
    ```
 
-## 3. Запустите БД
+## 3. Запустите проект
 
 ```bash
     docker compose up -d
 ```
 
-## 4. Запуск приложения
-
-```bash
-go run main.go
-```
 ## Важно!
 
 Не забывайте про **BOT_TOKEN** его нужно подставить в @BotFather вам выдает Токен бота и вы должны ставить туда.
