@@ -22,3 +22,5 @@ bat
 Makefile
 docker-compose.yml
 BUILDING.md
+PRIVACY.md
+SECURITY.md
