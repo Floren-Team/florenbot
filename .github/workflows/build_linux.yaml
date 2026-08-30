@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 go build -v -o florenbot .
+
+      - name: Create tar.gz archive
+        run: |
+          tar -czvf florenbot-linux-amd64.tar.gz florenbot
+
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Sign archive with GPG
+        run: |
+          gpg --batch --pinentry-mode loopback --detach-sign --armor florenbot-linux-amd64.tar.gz
+
+      - name: Create publickey.asc file
+        run: |
+          cat << 'EOF' > publickey.asc
+          ${{ secrets.GPG_PUBLIC_KEY }}
+          EOF
+
+      - name: Publish Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            florenbot-linux-amd64.tar.gz
+            florenbot-linux-amd64.tar.gz.asc
+            publickey.asc
