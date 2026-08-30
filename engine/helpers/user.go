@@ -163,7 +163,7 @@ func GetUserByID(tgID uint64) (structs.User, error) {
 			}
 
 			// Парсинг VIP
-			if val, err := strconv.ParseUint(data["vip"], 10, 64); err == nil {
+			if val, err := strconv.ParseInt(data["vip"], 10, strconv.IntSize); err == nil {
 				user.Vip = int(val)
 			}
 
