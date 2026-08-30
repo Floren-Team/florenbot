@@ -22,7 +22,7 @@ jobs:
 
       - name: Build binary
         run: |
-          CGO_ENABLED=0 go build -v -o florenbot .
+          CGO_ENABLED=0 go build -v -o florenbot ./bot
 
       - name: Create tar.gz archive
         run: |
