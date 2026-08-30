@@ -142,6 +142,13 @@ func untar(path, dest string) error {
 	defer f.Close()
 	gzr, _ := gzip.NewReader(f)
 	tr := tar.NewReader(gzr)
+
+	absDest, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	absDest = filepath.Clean(absDest)
+
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -151,8 +158,20 @@ func untar(path, dest string) error {
 			continue
 		}
 
-		target := filepath.Join(dest, header.Name)
+		if filepath.IsAbs(header.Name) {
+			return fmt.Errorf("invalid tar entry path: %s", header.Name)
+		}
+
+		target := filepath.Clean(filepath.Join(absDest, header.Name))
+		if target != absDest && !strings.HasPrefix(target, absDest+string(os.PathSeparator)) {
+			return fmt.Errorf("tar entry escapes destination: %s", header.Name)
+		}
+
 		log.Printf("[DEBUG] Extracting: %s", header.Name)
+
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return err
+		}
 
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		io.Copy(outFile, tr)
@@ -164,12 +183,32 @@ func untar(path, dest string) error {
 func unzip(path, dest string) error {
 	r, _ := zip.OpenReader(path)
 	defer r.Close()
+
+	absDest, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	absDest = filepath.Clean(absDest)
+
 	for _, f := range r.File {
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		target := filepath.Join(dest, f.Name)
+
+		if filepath.IsAbs(f.Name) {
+			return fmt.Errorf("invalid zip entry path: %s", f.Name)
+		}
+
+		target := filepath.Clean(filepath.Join(absDest, f.Name))
+		if target != absDest && !strings.HasPrefix(target, absDest+string(os.PathSeparator)) {
+			return fmt.Errorf("zip entry escapes destination: %s", f.Name)
+		}
+
 		log.Printf("[DEBUG] Extracting: %s", f.Name)
+
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return err
+		}
 
 		outFile, _ := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 		rc, _ := f.Open()
