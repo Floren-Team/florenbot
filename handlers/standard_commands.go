@@ -32,6 +32,8 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	info += "/clan - Управление кланами\n"
 	info += "/promo - Управление промокодами\n"
 	info += "/joinsquid - Присоединиться к Squid Game\n"
+	info += "/leavesquid - Покинуть Squid Game\n"
+
 
 
 	// 1. Команды для Модератора
@@ -64,6 +66,8 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		info += "/restrict remove [command] — Удалить ограничение\n\n"
 		info += "/createsquid - Создать комнату\n"
 		info += "/closesquid - Закрыть комнату\n"
+		info += "/squidall - Оповестить всех\n"
+		info += "/squid - Информация о комнате\n"
 
 	}
 

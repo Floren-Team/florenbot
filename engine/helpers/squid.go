@@ -22,19 +22,19 @@ func JoinRoom(db *gorm.DB, roomId uint64, userId uint64) error {
 	var room structs.SquidRooms
 	if err := db.First(&room, roomId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("кімнату не знайдено")
+			return errors.New("комната не найдена")
 		}
 		return err
 	}
 
 	if room.Status != "open" {
-		return errors.New("реєстрація до цієї кімнати вже закрита або гра вже почалася")
+		return errors.New("Регистрация закрыта!")
 	}
 
 	var existingMember structs.SquidMembers
 	err := db.Where("room_id = ? AND user_id = ?", roomId, userId).First(&existingMember).Error
 	if err == nil {
-		return errors.New("ви вже приєдналися до цієї кімнати")
+		return errors.New("вы уже в комнате")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -51,14 +51,25 @@ func JoinRoom(db *gorm.DB, roomId uint64, userId uint64) error {
 	return nil
 }
 
-func GetRoomSquid(db *gorm.DB, owner_id uint64) (bool, error) {
+func LeaveRoom(db *gorm.DB, roomId uint64, userId uint64) error {
+    result := db.Where("room_id = ? AND user_id = ?", roomId, userId).Delete(&structs.SquidMembers{})
+    if result.Error != nil {
+        return result.Error
+    }
+    if result.RowsAffected == 0 {
+        return errors.New("вы не в комнате")
+    }
+    return nil
+}
+
+func GetRoomSquid(db *gorm.DB, owner_id uint64) (bool, structs.SquidRooms, error) {
     var room structs.SquidRooms
     err := db.Where("owner_id = ?", owner_id).First(&room).Error
     if err != nil {
         if errors.Is(err, gorm.ErrRecordNotFound) {
-            return false, nil // Ошибка не в базе
+            return false, structs.SquidRooms{}, nil // Комнаты нет, это не ошибка БД
         }
-        return false, err // Ошибка 
+        return false, structs.SquidRooms{}, err // Реальная ошибка базы данных
     }
-    return true, nil // Комната существует
+    return true, room, nil // Комната найдена, возвращаем true и данные комнаты
 }

@@ -85,6 +85,12 @@ func main() {
 
 	go func() {
 		for update := range updates {
+
+			if update.CallbackQuery != nil {
+				handlers.HandleSquidCallback(bot, update.CallbackQuery)
+				continue
+			}
+			
 			if update.Message == nil {
 				continue
 			}
@@ -170,6 +176,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleClan(bot, message)
 	case "roulette":
 		handlers.HandleRoulette(bot, message)
+	case "squid":
+		handlers.HandleSquidInfo(bot, message)
 	case "bones":
 		bones.HandleBones(bot, message)
 	case "q":
@@ -244,6 +252,8 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleCreateRoom(bot, message)
 	case "joinsquid":
 		handlers.HandleJoinRoom(bot, message)
+	case "leavesquid":
+		handlers.HandleLeaveRoom(bot, message)
 	case "squidall":
 		handlers.HandleSquidAll(bot, message)
 	default:
