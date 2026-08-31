@@ -1,10 +1,10 @@
 
-DOCKER_COMPOSE = docker compose
+DOCKER_COMPOSE = podman compose
 
 .PHONY: up, down, build, run
 
 up:
-	$(DOCKER_COMPOSE) --env-file .env.docker  up -d
+	$(DOCKER_COMPOSE) --env-file .env  up -d
 
 down:
 	$(DOCKER_COMPOSE) --env-file .env.docker down
