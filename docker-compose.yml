@@ -1,6 +1,6 @@
 services:
   bot:
-    build: .
+    image: ghcr.io/florenbot/florenbot:latest
     container_name: florenbot
     restart: always
     env_file:
@@ -32,15 +32,22 @@ services:
           memory: 256M
     networks:
       - florenbot
-  adminer:
-    image: adminer
-    container_name: florenbot_adminer
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
     restart: always
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 300M
     ports:
-      - "8080:8080"
-    command: php -S 0.0.0.0:8080 -t /var/www/html
+      - "8080:80"
     networks:
       - florenbot
+    depends_on:
+      mariadb:
+        condition: service_healthy
 
   mariadb:
     image: mariadb:10.11
@@ -56,12 +63,14 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 40s
     networks:
       - florenbot
+
   redis:
     image: redis:alpine
     container_name: florenbot_redis
@@ -71,7 +80,7 @@ services:
       timeout: 3s
       retries: 5
     restart: always
-    command: ["redis-server", "--bind", "0.0.0.0", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--bind", "0.0.0.0", "--requirepass", "${REDIS_PASSWORD}", "--notify-keyspace-events", "Ex"]
     ports:
       - "6379:6379"
     volumes:

@@ -1,36 +1,28 @@
-# ЕТАП 1: Сборка (Build)
+# ЭТАП 1: Сборка (Build)
 FROM golang:1.25-alpine AS builder
 
-# Встановлюємо залежності для збірки
 RUN apk add --no-cache git gcc musl-dev
 
 WORKDIR /app
 
-# Копіюємо залежності окремо для ефективного кешування шарів
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Копіюємо решту вихідного коду
 COPY . .
 
-# Збірка бінарника
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o bot .
+# Собираем бинарник в специальную поддиректорию, чтобы избежать конфликта с папкой bot/
+RUN mkdir -p /build && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /build/bot ./bot
 
-# ЕТАП 2: Фінальний образ (Run)
+
+# ЭТАП 2: Финальный образ (Run)
 FROM alpine:latest
 
-# Встановлюємо сертифікати для HTTPS (Telegram API)
-RUN apk --no-cache add ca-certificates bash
+RUN apk --no-cache add ca-certificates bash gnupg
 
-# Встановлюємо робочу директорію
 WORKDIR /app
 
-# Копіюємо тільки скомпілований бінарний файл з етапу builder
-COPY --from=builder /app/bot .
+# Четко копируем скомпилированный бинарник из временной папки сборки
+COPY --from=builder /build/bot /app/bot
 
-# Якщо вашому додатку потрібні статичні файли (шаблони, конфіги тощо),
-# копіюйте їх тут. Але НЕ копіюйте .env
-# COPY static/ ./static/
-
-# Запускаємо додаток
-CMD ["./bot"]
+# Запускаем приложение
+CMD ["/app/bot", "--skip"]
