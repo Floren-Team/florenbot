@@ -1,6 +1,6 @@
 package consts
 
-const VERSION = "8.1"
+const VERSION = "v9.1.0 (Development Branch)"
 
 const DATE_LAST_UPDATE = "21.08.2026"
 
