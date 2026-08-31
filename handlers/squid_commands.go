@@ -10,6 +10,7 @@ import (
 	gorm "gorm.io/gorm"
 	"errors"
 	"fmt"
+	"time"
 )
 
 func HandleCreateRoom(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -118,7 +119,6 @@ func HandleSquidInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     user_id := message.From.ID
 
     var room structs.SquidRooms
-    // Виправляємо запит: підтягуємо і саму кімнату, і учасників, і профіль User для кожного учасника
     err := engine.DB.Preload("Members.User").Where("status = ?", "open").First(&room).Error
     if err != nil {
         if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -159,26 +159,266 @@ func HandleSquidInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     msg := tgbotapi.NewMessage(chat_id, text)
     msg.ParseMode = "Markdown"
 
-    // Динамічна кнопка: якщо користувач уже в кімнаті — показуємо "Вийти", якщо ні — "Войти"
-    var keyboard tgbotapi.InlineKeyboardMarkup
-    if isMember {
-        keyboard = tgbotapi.NewInlineKeyboardMarkup(
-            tgbotapi.NewInlineKeyboardRow(
-                tgbotapi.NewInlineKeyboardButtonData("🚪 Выйти", "squid_leave"),
-            ),
-        )
-    } else {
-        keyboard = tgbotapi.NewInlineKeyboardMarkup(
-            tgbotapi.NewInlineKeyboardRow(
-                tgbotapi.NewInlineKeyboardButtonData("📥 Войти", "squid_join"),
-            ),
-        )
-    }
-    msg.ReplyMarkup = keyboard
 
-    bot.Send(msg)
+	if room.Status != "open" {
+		var keyboard tgbotapi.InlineKeyboardMarkup
+		if isMember {
+			keyboard = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("🚪 Выйти", "squid_leave"),
+				),
+			)
+		} else {
+			keyboard = tgbotapi.NewInlineKeyboardMarkup(
+				tgbotapi.NewInlineKeyboardRow(
+					tgbotapi.NewInlineKeyboardButtonData("📥 Войти", "squid_join"),
+				),
+			)
+		}
+		msg.ReplyMarkup = keyboard
+
+		bot.Send(msg)
+	}
+	
 }
 
+func HandleStartSquid(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    chat_id := message.Chat.ID
+    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+    user_id := message.From.ID
+
+    // 1. Проверяем права пользователя
+    memberRole, err := helpers.GetMemberRole(uint64(user_id), uint64(parsed_chat_id))
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+        return
+    }
+
+    var room structs.SquidRooms
+    var queryErr error
+
+    // Если создатель/админ чата — берем последнюю комнату, если обычный — его собственную
+    if std_helpers.IsUserOwnerOrCreator(&memberRole) {
+        queryErr = engine.DB.Order("id DESC").First(&room).Error
+    } else {
+        queryErr = engine.DB.Where("owner_id = ?", uint64(user_id)).Order("id DESC").First(&room).Error
+    }
+
+    if queryErr != nil {
+        if errors.Is(queryErr, gorm.ErrRecordNotFound) {
+            bot.Send(tgbotapi.NewMessage(chat_id, "❌ Комната не найдена."))
+            return
+        }
+        log.Printf("DEBUG: [HandleStartSquid] Ошибка поиска комнаты: %v", queryErr)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось найти комнату."))
+        return
+    }
+
+    // 2. Проверка статуса: игра не может быть начатой, если комната открыта
+    if room.Status != "closed" {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Игра не может быть начатой, если комната открыта."))
+        return
+    }
+
+    // 3. Запускаем первую игру, передавая реальный ID найденной комнаты
+    HandleStartFirstGame(bot, chat_id, room.ID)
+}
+
+// HandleStartFirstGame запускает первую игру "Красный свет, зеленый свет", таймер и автоматическое переключение света
+func HandleStartFirstGame(bot *tgbotapi.BotAPI, chatID int64, roomId uint64) {
+    var room structs.SquidRooms
+    if err := engine.DB.Preload("Members.User").First(&room, roomId).Error; err != nil {
+        return
+    }
+
+    room.Status = "game_red_green"
+    room.LightStatus = "green" // Начинаем с зеленого света
+    room.TimerSeconds = 180    // 3 минуты (3:00)
+    engine.DB.Save(&room)
+
+    // Формируем начальный текст игры с правилами
+    text := buildGameText(&room, "🟢 ЗЕЛЕНЫЙ СВЕТ — Нужно идти (можно нажимать ШАГ)!")
+
+    msg := tgbotapi.NewMessage(chatID, text)
+    msg.ParseMode = "Markdown"
+
+    keyboard := tgbotapi.NewInlineKeyboardMarkup(
+        tgbotapi.NewInlineKeyboardRow(
+            tgbotapi.NewInlineKeyboardButtonData("👟 ШАГ", "squid_step"),
+        ),
+    )
+    msg.ReplyMarkup = keyboard
+
+    sentMsg, err := bot.Send(msg)
+    if err != nil {
+        return
+    }
+
+    // Запускаем горутину для таймера и смены сигналов светофора в реальном времени
+    go runGameLoop(bot, chatID, sentMsg.MessageID, roomId)
+}
+
+// runGameLoop управляет таймером (3:00) и случайным переключением света (ЗЕЛЕНЫЙ / КРАСНЫЙ)
+func runGameLoop(bot *tgbotapi.BotAPI, chatID int64, messageID int, roomId uint64) {
+    ticker := time.NewTicker(1 * time.Second)
+    defer ticker.Stop()
+
+    lightSwitchCounter := 0
+
+    for range ticker.C {
+        var room structs.SquidRooms
+        if err := engine.DB.Preload("Members.User").First(&room, roomId).Error; err != nil {
+            return
+        }
+
+        if room.Status != "game_red_green" {
+            return
+        }
+
+        if room.TimerSeconds > 0 {
+            room.TimerSeconds--
+        }
+
+        lightSwitchCounter++
+        if lightSwitchCounter >= 8 {
+            lightSwitchCounter = 0
+            if room.LightStatus == "green" {
+                room.LightStatus = "red"
+            } else {
+                room.LightStatus = "green"
+            }
+        }
+        engine.DB.Save(&room)
+
+        if room.TimerSeconds <= 0 {
+            endGameByTimeout(bot, chatID, messageID, roomId)
+            return
+        }
+
+        var lightInstruction string
+        if room.LightStatus == "green" {
+            lightInstruction = "🟢 ЗЕЛЕНЫЙ СВЕТ — Нужно идти (можно нажимать ШАГ)!"
+        } else {
+            lightInstruction = "🔴 КРАСНЫЙ СВЕТ — СТОП! Не нажимайте ШАГ!"
+        }
+
+        updateGameMessageWithTimer(bot, chatID, messageID, &room, lightInstruction)
+    }
+}
+
+// endGameByTimeout обрабатывает окончание времени (поражение всех оставшихся)
+func endGameByTimeout(bot *tgbotapi.BotAPI, chatID int64, messageID int, roomId uint64) {
+    var room structs.SquidRooms
+    if err := engine.DB.Preload("Members.User").First(&room, roomId).Error; err != nil {
+        return
+    }
+
+    engine.DB.Where("room_id = ?", roomId).Delete(&structs.SquidMembers{})
+
+    room.Status = "closed"
+    engine.DB.Save(&room)
+
+    text := "⏰ *Время вышло (0:00)!*\n\n" +
+        "К сожалению, таймер истек. Все оставшиеся участники проиграли в игре *Красный свет, зеленый свет*! ❌"
+
+    editMsg := tgbotapi.NewEditMessageText(chatID, messageID, text)
+    editMsg.ParseMode = "Markdown"
+    bot.Send(editMsg)
+}
+
+// buildGameText генерирует текст сообщения игры, включая правила, участников, прогресс-бар и таймер
+func buildGameText(room *structs.SquidRooms, lightInstruction string) string {
+    minutes := room.TimerSeconds / 60
+    seconds := room.TimerSeconds % 60
+    timerStr := fmt.Sprintf("%d:%02d", minutes, seconds)
+
+    var participantsText string
+    totalMembers := len(room.Members)
+
+    if totalMembers > 0 {
+        participantsText = "*Список участников:*\n"
+        for i, member := range room.Members {
+            name := member.User.FirstName
+            if name == "" {
+                name = fmt.Sprintf("ID: %d", member.UserId)
+            }
+            participantsText += fmt.Sprintf("%d. %s\n", i+1, name)
+        }
+    } else {
+        participantsText = "_Все участники выбыли._\n"
+    }
+
+    progressPercent := (180 - room.TimerSeconds) * 100 / 180
+    filledBlocks := progressPercent / 10
+    if filledBlocks > 10 {
+        filledBlocks = 10
+    }
+    emptyBlocks := 10 - filledBlocks
+    progressBar := fmt.Sprintf("[%s%s] %d%%", repeatString("█", filledBlocks), repeatString("░", emptyBlocks), progressPercent)
+
+    return fmt.Sprintf("🔴 *Первая игра: Красный свет, зеленый свет*\n\n"+
+        "📜 *Правила игры:*\n"+
+        "• %s\n"+
+        "• Следите за таймером. Если время выйдет до финиша — вы проиграете.\n\n"+
+        "⏱ *Оставшееся время:* `%s`\n\n"+
+        "%s\n\n"+
+        "📊 *Прогресс игры:* %s",
+        lightInstruction, timerStr, participantsText, progressBar)
+}
+
+// updateGameMessageWithTimer обновляет интерфейс сообщения с учетом таймера и света
+func updateGameMessageWithTimer(bot *tgbotapi.BotAPI, chatID int64, messageID int, room *structs.SquidRooms, lightInstruction string) {
+    engine.DB.Preload("Members.User").First(room, room.ID)
+
+    text := buildGameText(room, lightInstruction)
+
+    editMsg := tgbotapi.NewEditMessageText(chatID, messageID, text)
+    editMsg.ParseMode = "Markdown"
+
+    keyboard := tgbotapi.NewInlineKeyboardMarkup(
+        tgbotapi.NewInlineKeyboardRow(
+            tgbotapi.NewInlineKeyboardButtonData("👟 ШАГ", "squid_step"),
+        ),
+    )
+    editMsg.ReplyMarkup = &keyboard
+
+    bot.Send(editMsg)
+}
+
+// HandleSquidStepCallback обрабатывает нажатие кнопки "ШАГ"
+func HandleSquidStepCallback(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
+    user_id := callback.From.ID
+
+    var member structs.SquidMembers
+    if err := engine.DB.Where("user_id = ?", uint64(user_id)).First(&member).Error; err != nil {
+        answerCallback(bot, callback.ID, "❌ Вы не участвуете в игре.")
+        return
+    }
+
+    var room structs.SquidRooms
+    if err := engine.DB.Preload("Members.User").First(&room, member.RoomId).Error; err != nil {
+        answerCallback(bot, callback.ID, "❌ Комната не найдена.")
+        return
+    }
+
+    if room.LightStatus == "red" {
+        if err := engine.DB.Delete(&member).Error; err != nil {
+            log.Printf("DEBUG: [HandleSquidStepCallback] Ошибка удаления игрока: %v", err)
+            answerCallback(bot, callback.ID, "❌ Ошибка выбывания из игры.")
+            return
+        }
+
+        answerCallback(bot, callback.ID, "❌ Красный свет! Вы сделали шаг и выбыли из игры!")
+        return
+    }
+
+    if room.LightStatus == "green" {
+        answerCallback(bot, callback.ID, "✅ Успешно! Вы сделали шаг на зеленый свет.")
+        return
+    }
+
+    answerCallback(bot, callback.ID, "⏳ Игра еще не переключила сигнал светофора.")
+}
 
 func HandleSquidCallback(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery) {
     user_id := callback.From.ID
@@ -227,11 +467,68 @@ func HandleSquidCallback(bot *tgbotapi.BotAPI, callback *tgbotapi.CallbackQuery)
 
         answerCallback(bot, callback.ID, "✅ Вы вышли из комнаты.")
 
+    case "squid_step":
+        HandleSquidStepCallback(bot, callback)
+
     default:
         answerCallback(bot, callback.ID, "❓ Неизвестное действие.")
     }
 }
 
+
+func repeatString(s string, count int) string {
+    result := ""
+    for i := 0; i < count; i++ {
+        result += s
+    }
+    return result
+}
+
+func HandleCloseRoom(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+    chat_id := message.Chat.ID
+    parsed_chat_id := std_helpers.ParseChatID(uint64(chat_id))
+    user_id := message.From.ID
+
+    // 1. Проверка прав пользователя в чате
+    memberRole, err := helpers.GetMemberRole(uint64(user_id), uint64(parsed_chat_id))
+    if err != nil {
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет прав для выполнения этой команды."))
+        return
+    }
+
+    var room structs.SquidRooms
+    var queryErr error
+
+    // Если пользователь — создатель или админ чата, он может закрыть любую открытую комнату.
+    // Если обычный пользователь — только свою собственную (где он владелец).
+    if std_helpers.IsUserOwnerOrCreator(&memberRole) {
+        queryErr = engine.DB.Where("status = ?", "open").Order("id DESC").First(&room).Error
+    } else {
+        queryErr = engine.DB.Where("owner_id = ? AND status = ?", uint64(user_id), "open").First(&room).Error
+    }
+
+    if queryErr != nil {
+        if errors.Is(queryErr, gorm.ErrRecordNotFound) {
+            bot.Send(tgbotapi.NewMessage(chat_id, "❌ У вас нет активной открытой комнаты для закрытия."))
+            return
+        }
+        log.Printf("DEBUG: [HandleCloseRoom] Ошибка поиска комнаты: %v", queryErr)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось найти комнату."))
+        return
+    }
+
+    // 2. Меняем статус комнаты на закрытый
+    room.Status = "closed"
+    if err := engine.DB.Save(&room).Error; err != nil {
+        log.Printf("DEBUG: [HandleCloseRoom] Ошибка обновления статуса комнаты: %v", err)
+        bot.Send(tgbotapi.NewMessage(chat_id, "❌ Не удалось закрыть комнату."))
+        return
+    }
+
+    msg := tgbotapi.NewMessage(chat_id, fmt.Sprintf("🔒 Комната `Игра в кальмара` (ID: `%d`) успешно закрыта!", room.ID))
+    msg.ParseMode = "Markdown"
+    bot.Send(msg)
+}
 
 // Вспомогательная функция для ответа на callback-запрос (убирает крутилку загрузки у кнопки)
 func answerCallback(bot *tgbotapi.BotAPI, callbackID string, text string) {

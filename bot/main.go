@@ -178,6 +178,10 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		handlers.HandleRoulette(bot, message)
 	case "squid":
 		handlers.HandleSquidInfo(bot, message)
+	case "closesquid":
+		handlers.HandleCloseRoom(bot, message)
+	case "startsquid":
+		handlers.HandleStartSquid(bot, message)
 	case "bones":
 		bones.HandleBones(bot, message)
 	case "q":
