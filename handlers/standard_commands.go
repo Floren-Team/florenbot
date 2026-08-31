@@ -31,6 +31,8 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	info += "/top — Топ сообщений\n"
 	info += "/clan - Управление кланами\n"
 	info += "/promo - Управление промокодами\n"
+	info += "/joinsquid - Присоединиться к Squid Game\n"
+
 
 	// 1. Команды для Модератора
 	if memberRole.ShortName == "moderator" || std_helpers.IsUserAdmin(&memberRole) || std_helpers.IsUserOwnerOrCreator(&memberRole) {
@@ -59,7 +61,10 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		info += "/editrole [ID] [имя] [короткое] — Редактировать роль\n"
 		info += "/delrole [ID] — Удалить роль\n"
 		info += "/restrict add [command] — Изменить доступ к команде (добавить ограничение)\n"
-		info += "/restrict remove [command] — Удалить ограничение\n"
+		info += "/restrict remove [command] — Удалить ограничение\n\n"
+		info += "/createsquid - Создать комнату\n"
+		info += "/closesquid - Закрыть комнату\n"
+
 	}
 
 	// 4. Команды только для Создателя
@@ -450,14 +455,7 @@ func HandleTopMessages(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
     }
 }
 
-func HandleInfo(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Информация о боте\n\n"+
-		"Версия: 3.0\n"+
-		"Дата обновления: 2026.05.29\n"+
-		"Автор: Egor Luchiy\n"+
-		"GitHub: -\n"+
-		"Поддержка: Hamster Bot Владелец: @Serh1t"))
-}
+
 
 // HandleBalance обрабатывает команду /balance
 func HandleBalance(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {

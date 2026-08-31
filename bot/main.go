@@ -240,6 +240,12 @@ func handleCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		admin_handlers.HandleModers(bot, message)
 	case "admins":
 		admin_handlers.HandleAdmins(bot, message)
+	case "createsquid":
+		handlers.HandleCreateRoom(bot, message)
+	case "joinsquid":
+		handlers.HandleJoinRoom(bot, message)
+	case "squidall":
+		handlers.HandleSquidAll(bot, message)
 	default:
 		bot.Send(tgbotapi.NewMessage(message.Chat.ID, "❌ Неизвестная команда"))
 	}

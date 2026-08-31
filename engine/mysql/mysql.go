@@ -125,6 +125,8 @@ func Migrate(db *gorm.DB) error {
 		&structs.UserCommandRestriction{},
 		&structs.UserPromo{},
 		&structs.Report{},
+		&structs.SquidRooms{},
+		&structs.SquidMembers{},
 		&structs.Ban{},
 		&structs.ClanMember{},
 		&structs.ClanBlacklist{},
